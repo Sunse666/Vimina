@@ -105,7 +105,7 @@ MaxDepth = 50                       # 控件树遍历深度
 IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow
 ```
 
-|字段||说明|
+|字段|说明|
 |---|---|
 |MinWidth / MinHeight|过滤掉过小的控件，避免标签过于密集|
 |path|限制控件树遍历深度，防止扫描过慢|
@@ -240,8 +240,7 @@ IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow,MyA
 
 - 使用其他方式与网页元素交互过于困难
 - 部分软件可能会检测或禁止此类交互方式
-
-后续将支持选择更多的交互方式
+- 后续将支持选择更多的交互方式
 
 ---
 <p align="center"> Made with 💚 by Vimina </p>
