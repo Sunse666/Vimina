@@ -3,7 +3,7 @@
 
 
 ## ✨ 简介
-受浏览器插件 Vimium 启发，在 Windows 上复刻功能的软件。通过 FlaUI 自动化框架识别窗口中的可交互控件，为每个控件生成唯一的字母标签，只需敲击键盘即可精准点击任意按钮、链接、输入框，因此彻底解放鼠标，让键盘党的效率飞升。
+受浏览器插件 Vimium 启发，在 Windows 上复刻功能的软件。通过 FlaUI 自动化框架识别窗口中的可交互控件，为每个控件生成唯一的字母标签，只需敲击键盘即可精准点击任意按钮、链接、输入框，同时提供 HTTP API 接口，支持外部程序调用，可轻松与 AI 助手、自动化脚本集成,因此彻底解放鼠标，让键盘党的效率飞升。
 
 
 ## 🖼️ 截图
@@ -46,6 +46,147 @@
 - 左键点击显示主窗口
 - 右键菜单快速访问配置
 
+### 🌐 HTTP API 服务
+- 内置轻量 HTTP 服务器，默认端口 51401
+- 提供完整的 RESTful 接口
+- 支持控件扫描、标签点击、坐标操作、文本输入
+- 返回 JSON 格式数据，便于 AI 分析和程序调用
+- 支持 CORS 跨域访问
+
+
+## 🌐 HTTP API
+
+Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
+
+### 接口总览
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api` | API 信息与帮助 |
+| GET | `/api/scan` | 获取扫描结果 |
+| POST | `/api/show` | 显示标签并扫描 |
+| POST | `/api/hide` | 隐藏标签 |
+| POST | `/api/click` | 通过标签点击控件 |
+| GET | `/api/click/{x}/{y}` | 坐标点击 |
+| GET | `/api/clickR/{x}/{y}` | 坐标右键点击 |
+| GET | `/api/dblclick/{x}/{y}` | 坐标双击 |
+| GET | `/api/mouse` | 获取鼠标当前位置 |
+| GET | `/api/move/{x}/{y}` | 移动鼠标 |
+| GET | `/api/drag/{x1}/{y1}/{x2}/{y2}` | 拖拽操作 |
+| POST | `/api/input` | 模拟键盘输入文本 |
+| GET | `/api/status` | 获取服务状态 |
+
+### 接口详情
+
+#### 扫描控件
+
+```bash
+# 触发扫描并显示标签
+curl -X POST http://localhost:51401/api/show
+
+# 获取扫描结果
+curl http://localhost:51401/api/scan
+```
+
+响应示例:
+
+```JSON
+{
+  "success": true,
+  "timestamp": "...",
+  "summary": {
+    "totalControls": 15,
+    "description": "窗口「记事本」共有 15 个可交互控件"
+  },
+  "quickReference": [
+    "DJ: 文件 (MenuItem)",
+    "DK: 编辑 (MenuItem)",
+    "DL: 保存 (Button)"
+  ],
+  "controls": [...]
+}
+```
+
+### 点击控件
+
+```bash
+# 通过标签点击
+curl -X POST http://localhost:51401/api/click \
+  -H "Content-Type: application/json" \
+  -d '{"label": "DJ"}'
+
+# 通过坐标点击
+curl http://localhost:51401/api/click/500/300
+
+# 右键点击
+curl http://localhost:51401/api/clickR/500/300
+
+# 双击
+curl http://localhost:51401/api/dblclick/500/300
+```
+
+### 鼠标操作
+
+```bash
+# 获取鼠标位置
+curl http://localhost:51401/api/mouse
+
+# 移动鼠标
+curl http://localhost:51401/api/move/500/300
+
+# 拖拽（从 100,100 拖到 500,300）
+curl http://localhost:51401/api/drag/100/100/500/300
+```
+
+### 文本输入
+
+```bash
+curl -X POST http://localhost:51401/api/input \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello World"}'
+```
+
+### 状态查询
+
+```bash
+curl http://localhost:51401/api/status
+```
+
+响应示例：
+
+```JSON
+{
+  "running": true,
+  "hasData": true,
+  "lastScan": "...",
+  "mousePosition": {"x": 500, "y": 300},
+  "screen": [1920, 1080]
+}
+```
+
+### 与 AI 集成
+
+Vimina 的 API 设计对 AI 友好，扫描结果包含丰富的语义信息：
+
+```Python
+# Python 示例：让 AI 操作桌面应用
+import requests
+
+# 1. 扫描当前窗口(也可事先手动扫描)
+requests.post("http://localhost:51401/api/show")
+
+# 2. 获取控件信息供 AI 分析
+result = requests.get("http://localhost:51401/api/scan").json()
+print(result["quickReference"])
+# ['DJ: 文件 (MenuItem)', 'DK: 编辑 (MenuItem)', ...]
+
+# 3. AI 决策后点击目标控件(注意当前前台窗口)
+requests.post("http://localhost:51401/api/click", json={"label": "DJ"})
+```
+
+> [!TIP]
+> 扫描结果中的 quickReference 字段提供简洁的控件描述，适合作为 AI 的上下文输入
+
 
 ## 📦 安装与使用
 
@@ -71,8 +212,11 @@
 
 ```
 Vimina/
-├── Vimina.exe    # 主程序
-└── config.ini      # 配置文件
+├── Vimina.exe                # 主程序
+├── config.ini                  # 配置文件
+└── data/                          # 数据目录
+├── scan_result.json     # 扫描结果
+└── label_map.json       # 标签映射
 ```
 
 
@@ -235,6 +379,21 @@ IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow,MyA
 
 > [!TIP]
 > 可使用 Spy++ 或 WinSpy 工具查看窗口类名
+
+### Q: 如何在脚本中使用 API？
+
+```bash
+# 完整的自动化流程示例
+curl -X POST http://localhost:51401/api/show    # 扫描()注意焦点窗口
+sleep 1
+curl http://localhost:51401/api/scan                    # 获取结果
+curl -X POST http://localhost:51401/api/click -d '{"label":"DJ"}'  # 点击
+curl -X POST http://localhost:51401/api/hide     # 清理
+```
+
+### Q: API 支持跨域访问吗？
+
+支持。已配置 CORS 头，可从浏览器中的网页直接调用
 
 ### Q: 为什么交互使用的是鼠标而不是其他方式？
 
