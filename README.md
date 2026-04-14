@@ -53,6 +53,12 @@
 - 返回 JSON 格式数据，便于 AI 分析和程序调用
 - 支持 CORS 跨域访问
 
+### 🔒 后台操作支持
+- 支持不移动鼠标完成点击操作
+- 支持不切换窗口焦点操作后台窗口
+- 通过窗口标题即可扫描和点击控件
+- 可获取所有窗口列表，排除系统应用
+
 
 ## 🌐 HTTP API
 
@@ -68,8 +74,16 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 | POST | `/api/hide` | 隐藏标签 |
 | POST | `/api/click` | 通过标签点击控件 |
 | GET | `/api/click/{x}/{y}` | 坐标点击 |
+| GET | `/api/click/{x}/{y}?useBackend=1` | 坐标后台点击 |
 | GET | `/api/clickR/{x}/{y}` | 坐标右键点击 |
 | GET | `/api/dblclick/{x}/{y}` | 坐标双击 |
+| GET | `/api/clickAt?x=&y=&useBackend=1` | 坐标点击(支持后台模式) |
+| POST | `/api/clickAt` | 坐标点击(支持后台模式) |
+| GET | `/api/windows` | 获取所有窗口列表(排除系统应用) |
+| GET | `/api/scanByTitle?title=xxx` | 通过窗口标题扫描控件 |
+| POST | `/api/scanByTitle` | 通过窗口标题扫描控件 |
+| GET | `/api/clickByTitle?title=xxx&x=&y=` | 通过窗口标题点击控件(支持后台) |
+| POST | `/api/clickByTitle` | 通过窗口标题点击控件(支持后台) |
 | GET | `/api/mouse` | 获取鼠标当前位置 |
 | GET | `/api/move/{x}/{y}` | 移动鼠标 |
 | GET | `/api/drag/{x1}/{y1}/{x2}/{y2}` | 拖拽操作 |
@@ -118,12 +132,70 @@ curl -X POST http://localhost:51401/api/click \
 # 通过坐标点击
 curl http://localhost:51401/api/click/500/300
 
+# 坐标后台点击（不移动鼠标）
+curl "http://localhost:51401/api/click/500/300?useBackend=1"
+
 # 右键点击
 curl http://localhost:51401/api/clickR/500/300
 
 # 双击
 curl http://localhost:51401/api/dblclick/500/300
+
+# 灵活的坐标点击（支持后台模式）
+curl "http://localhost:51401/api/clickAt?x=500&y=300&useBackend=1"
+
+# POST 方式点击
+curl -X POST http://localhost:51401/api/clickAt \
+  -H "Content-Type: application/json" \
+  -d '{"x": 500, "y": 300, "useBackend": true, "right": false}'
 ```
+
+### 窗口管理（后台操作）
+
+```bash
+# 获取所有窗口列表（排除系统应用）
+curl http://localhost:51401/api/windows
+```
+
+响应示例：
+
+```JSON
+{
+  "success": true,
+  "count": 5,
+  "windows": [
+    {"hwnd": 123456, "title": "记事本", "className": "Notepad", "processId": 1234},
+    {"hwnd": 789012, "title": "bilibili", "className": "Chrome_WidgetWin_1", "processId": 5678}
+  ]
+}
+```
+
+```bash
+# 通过窗口标题扫描控件（支持部分匹配）
+curl "http://localhost:51401/api/scanByTitle?title=记事本"
+
+# POST 方式扫描
+curl -X POST http://localhost:51401/api/scanByTitle \
+  -H "Content-Type: application/json" \
+  -d '{"title": "记事本"}'
+```
+
+```bash
+# 通过窗口标题点击控件（支持后台点击）
+# 默认使用后台点击，不移动鼠标，不切换窗口
+curl "http://localhost:51401/api/clickByTitle?title=记事本&x=500&y=300"
+
+# 点击并切换到前台
+curl "http://127.0.0.1:51401/api/clickByTitle?title=记事本&x=500&y=300&bringtofront=1&usebackend=0"
+
+# POST 方式点击
+curl -X POST http://localhost:51401/api/clickByTitle \
+  -H "Content-Type: application/json" \
+  -d '{"title": "记事本", "x": 500, "y": 300, "useBackend": true, "bringToFront": false}'
+```
+
+> [!TIP]
+> 后台点击功能可以在不干扰当前工作的情况下操作其他窗口，非常适合自动化脚本和 AI 助手集成
 
 ### 鼠标操作
 
@@ -255,6 +327,24 @@ IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow
 |path|限制控件树遍历深度，防止扫描过慢|
 |icon|忽略的窗口类名，用逗号分隔|
 
+### 点击模式
+
+```
+[ClickMode]
+UseMouseClick = false                 # 是否使用鼠标点击（true=鼠标点击，false=后台点击）
+BringToFront = true                   # 点击前是否将窗口移到前台
+UseFlaUIClick = true                  # 是否使用 FlaUI 后台点击
+```
+
+| 字段 | 说明 |
+|------|------|
+| UseMouseClick | true=使用鼠标移动并点击，false=使用后台点击（不移动鼠标） |
+| BringToFront | true=点击前将窗口移到前台，false=保持窗口在后台 |
+| UseFlaUIClick | true=使用 FlaUI 框架进行后台点击，false=使用 winex 点击 |
+
+> [!TIP]
+> 后台点击模式（UseMouseClick=false）可以在不移动鼠标、不切换窗口的情况下完成点击操作
+
 ### 性能相关
 
 ```
@@ -287,6 +377,11 @@ MinWidth = 8
 MinHeight = 8
 MaxDepth = 50
 IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow
+
+[ClickMode]
+UseMouseClick = false
+BringToFront = true
+UseFlaUIClick = true
 
 [Performance]
 ClickDelay = 30
@@ -322,6 +417,21 @@ ClickDelay = 10
 
 > [!TIP]
 > 减少 MaxDepth 和增大 MinWidth/MinHeight 可显著提升扫描速度
+
+### 纯后台点击模式
+
+```
+[ClickMode]
+UseMouseClick = false       # 不使用鼠标点击
+BringToFront = false        # 不将窗口移到前台
+UseFlaUIClick = true        # 使用 FlaUI 后台点击
+
+[Performance]
+ClickDelay = 30
+```
+
+> [!TIP]
+> 此配置下所有点击操作都在后台完成，不会移动鼠标，不会切换窗口，适合自动化脚本
 
 
 ## 🛠️ 技术特点
