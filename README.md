@@ -511,5 +511,9 @@ curl -X POST http://localhost:51401/api/hide     # 清理
 - 部分软件可能会检测或禁止此类交互方式
 - 后续将支持选择更多的交互方式
 
+### Q: 输入按键没反应？
+
+部分控件可能不支持后台点击，改成鼠标点击试试
+
 ---
 <p align="center"> Made with 💚 by Vimina </p>
