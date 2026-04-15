@@ -7,7 +7,16 @@
 
 
 ## 🖼️ 截图
+
+### 使用截图
+
 <p align="center"> <img src="assets/Screenshot.png" alt="Screenshot"> </p>
+
+<p align="center"> <img src="assets/Screenshot2.png" alt="Screenshot"> </p>
+
+### 配置界面
+
+<p align="center"> <img src="assets/config.png" alt="Config Screenshot"> </p>
 
 
 ## 🚀 功能特性
@@ -77,9 +86,9 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 | GET | `/api/click/{x}/{y}?useBackend=1` | 坐标后台点击 |
 | GET | `/api/clickR/{x}/{y}` | 坐标右键点击 |
 | GET | `/api/dblclick/{x}/{y}` | 坐标双击 |
-| GET | `/api/clickAt?x=&y=&useBackend=1` | 坐标点击(支持后台模式) |
-| POST | `/api/clickAt` | 坐标点击(支持后台模式) |
-| GET | `/api/windows` | 获取所有窗口列表(排除系统应用) |
+| GET | `/api/clickAt?x=&y=&useBackend=1` | 坐标点击(支持后台) |
+| POST | `/api/clickAt` | 坐标点击(支持后台) |
+| GET | `/api/windows` | 获取所有窗口列表 |
 | GET | `/api/scanByTitle?title=xxx` | 通过窗口标题扫描控件 |
 | POST | `/api/scanByTitle` | 通过窗口标题扫描控件 |
 | GET | `/api/clickByTitle?title=xxx&x=&y=` | 通过窗口标题点击控件(支持后台) |
@@ -132,7 +141,7 @@ curl -X POST http://localhost:51401/api/click \
 # 通过坐标点击
 curl http://localhost:51401/api/click/500/300
 
-# 坐标后台点击（不移动鼠标）
+# 坐标后台点击
 curl "http://localhost:51401/api/click/500/300?useBackend=1"
 
 # 右键点击
@@ -141,7 +150,7 @@ curl http://localhost:51401/api/clickR/500/300
 # 双击
 curl http://localhost:51401/api/dblclick/500/300
 
-# 灵活的坐标点击（支持后台模式）
+# 坐标点击
 curl "http://localhost:51401/api/clickAt?x=500&y=300&useBackend=1"
 
 # POST 方式点击
@@ -150,10 +159,10 @@ curl -X POST http://localhost:51401/api/clickAt \
   -d '{"x": 500, "y": 300, "useBackend": true, "right": false}'
 ```
 
-### 窗口管理（后台操作）
+### 窗口管理
 
 ```bash
-# 获取所有窗口列表（排除系统应用）
+# 获取所有窗口列表
 curl http://localhost:51401/api/windows
 ```
 
@@ -171,7 +180,7 @@ curl http://localhost:51401/api/windows
 ```
 
 ```bash
-# 通过窗口标题扫描控件（支持部分匹配）
+# 通过窗口标题扫描控件，支持部分匹配
 curl "http://localhost:51401/api/scanByTitle?title=记事本"
 
 # POST 方式扫描
@@ -181,8 +190,7 @@ curl -X POST http://localhost:51401/api/scanByTitle \
 ```
 
 ```bash
-# 通过窗口标题点击控件（支持后台点击）
-# 默认使用后台点击，不移动鼠标，不切换窗口
+# 通过窗口标题点击控件
 curl "http://localhost:51401/api/clickByTitle?title=记事本&x=500&y=300"
 
 # 点击并切换到前台
@@ -285,60 +293,73 @@ requests.post("http://localhost:51401/api/click", json={"label": "DJ"})
 ```
 Vimina/
 ├── Vimina.exe                # 主程序
-├── config.ini                  # 配置文件
-└── data/                          # 数据目录
-├── scan_result.json     # 扫描结果
-└── label_map.json       # 标签映射
+├── config.json               # 配置文件
+└── data/                    # 数据目录
+    ├── scan_result.json     # 扫描结果
+    └── label_map.json       # 标签映射
 ```
 
 
 ## ⚙️ 配置说明
 
-配置文件为程序目录下的 config.ini，使用 INI 格式
+配置文件为程序目录下的 `config.json`，使用 JSON 格式。可以通过主界面按钮或直接编辑文件来修改配置。
 
 ### 标签样式
 
-```
-[Label]
-BackgroundColor_Default = 0x00DDFF    # 默认背景色（青色）
-BackgroundColor_Match = 0x00FF00      # 完全匹配时（绿色）
-BackgroundColor_Prefix = 0x00A5FF      # 前缀匹配时（橙色）
-BackgroundColor_Invalid = 0x808080    # 无效标签（灰色）
-TextColor = 0x000000                                # 文字颜色（黑色）
-FontSize = 12                                                  # 字体大小
-FontWeight = 700                                         # 字体粗细（700=粗体）
-OffsetX = 0                                                   # 标签 X 轴偏移
-OffsetY = 18                                                  # 标签 Y 轴偏移
-```
-
-### 过滤设置
-
-```
-[Filter]
-MinWidth = 8                          # 最小控件宽度
-MinHeight = 8                        # 最小控件高度
-MaxDepth = 50                       # 控件树遍历深度
-IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow
-```
-
-|字段|说明|
-|---|---|
-|MinWidth / MinHeight|过滤掉过小的控件，避免标签过于密集|
-|path|限制控件树遍历深度，防止扫描过慢|
-|icon|忽略的窗口类名，用逗号分隔|
-
-### 点击模式
-
-```
-[ClickMode]
-UseMouseClick = false                 # 是否使用鼠标点击（true=鼠标点击，false=后台点击）
-BringToFront = true                   # 点击前是否将窗口移到前台
-UseFlaUIClick = true                  # 是否使用 FlaUI 后台点击
+```json
+{
+    "BackgroundColor_Default": "0x00DDFF",
+    "BackgroundColor_Match": "0x00FF00",
+    "BackgroundColor_Prefix": "0x00A5FF",
+    "BackgroundColor_Invalid": "0x808080",
+    "TextColor": "0x000000",
+    "FontSize": 12,
+    "FontWeight": 700,
+    "OffsetX": 0,
+    "OffsetY": 18
+}
 ```
 
 | 字段 | 说明 |
 |------|------|
-| UseMouseClick | true=使用鼠标移动并点击，false=使用后台点击（不移动鼠标） |
+| BackgroundColor_Default | 默认背景色 |
+| BackgroundColor_Match | 完全匹配时 |
+| BackgroundColor_Prefix | 前缀匹配时 |
+| BackgroundColor_Invalid | 无效标签 |
+| TextColor | 文字颜色 |
+| FontSize | 字体大小 |
+| FontWeight | 字体粗细 |
+| OffsetX | 标签 X 轴偏移 |
+| OffsetY | 标签 Y 轴偏移 |
+
+### 过滤设置
+
+```json
+{
+    "MinWidth": 8,
+    "MinHeight": 8,
+    "MaxDepth": 50
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| MinWidth / MinHeight | 过滤掉过小的控件，避免标签过于密集 |
+| MaxDepth | 限制控件树遍历深度，防止扫描过慢 |
+
+### 点击模式
+
+```json
+{
+    "UseMouseClick": false,
+    "BringToFront": true,
+    "UseFlaUIClick": true
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| UseMouseClick | true=使用鼠标移动并点击，false=使用后台点击 |
 | BringToFront | true=点击前将窗口移到前台，false=保持窗口在后台 |
 | UseFlaUIClick | true=使用 FlaUI 框架进行后台点击，false=使用 winex 点击 |
 
@@ -347,10 +368,15 @@ UseFlaUIClick = true                  # 是否使用 FlaUI 后台点击
 
 ### 性能相关
 
+```json
+{
+    "ClickDelay": 30
+}
 ```
-[Performance]
-ClickDelay = 30                       # 点击后延迟(ms)
-```
+
+| 字段 | 说明 |
+|------|------|
+| ClickDelay | 点击后延迟 |
 
 > [!NOTE]
 > 如果点击不稳定或目标应用响应慢，可适当增加 ClickDelay 值
@@ -360,59 +386,52 @@ ClickDelay = 30                       # 点击后延迟(ms)
 
 ### 默认配置
 
-```
-[Label]
-BackgroundColor_Default = 0x00DDFF
-BackgroundColor_Match = 0x00FF00
-BackgroundColor_Prefix = 0x00A5FF
-BackgroundColor_Invalid = 0x808080
-TextColor = 0x000000
-FontSize = 12
-FontWeight = 700
-OffsetX = 0
-OffsetY = 18
-
-[Filter]
-MinWidth = 8
-MinHeight = 8
-MaxDepth = 50
-IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow
-
-[ClickMode]
-UseMouseClick = false
-BringToFront = true
-UseFlaUIClick = true
-
-[Performance]
-ClickDelay = 30
+```json
+{
+    "UseMouseClick": false,
+    "BringToFront": true,
+    "UseFlaUIClick": true,
+    "ClickDelay": 30,
+    "MinWidth": 8,
+    "MinHeight": 8,
+    "MaxDepth": 50,
+    "BackgroundColor_Default": "0x00DDFF",
+    "BackgroundColor_Match": "0x00FF00",
+    "BackgroundColor_Prefix": "0x00A5FF",
+    "BackgroundColor_Invalid": "0x808080",
+    "TextColor": "0x000000",
+    "FontSize": 12,
+    "FontWeight": 700,
+    "OffsetX": 0,
+    "OffsetY": 18
+}
 ```
 
 ### 深色主题配置
 
-```
-[Label]
-BackgroundColor_Default = 0x3D3D3D
-BackgroundColor_Match = 0x00FF00
-BackgroundColor_Prefix = 0x00A5FF
-BackgroundColor_Invalid = 0x1A1A1A
-TextColor = 0xFFFFFF
-FontSize = 11
-FontWeight = 400
-OffsetX = 0
-OffsetY = 15
+```json
+{
+    "BackgroundColor_Default": "0x3D3D3D",
+    "BackgroundColor_Match": "0x00FF00",
+    "BackgroundColor_Prefix": "0x00A5FF",
+    "BackgroundColor_Invalid": "0x1A1A1A",
+    "TextColor": "0xFFFFFF",
+    "FontSize": 11,
+    "FontWeight": 400,
+    "OffsetX": 0,
+    "OffsetY": 15
+}
 ```
 
 ### 快速扫描
 
-```
-[Filter]
-MinWidth = 15
-MinHeight = 15
-MaxDepth = 25
-IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow
-
-[Performance]
-ClickDelay = 10
+```json
+{
+    "MinWidth": 15,
+    "MinHeight": 15,
+    "MaxDepth": 25,
+    "ClickDelay": 10
+}
 ```
 
 > [!TIP]
@@ -420,14 +439,13 @@ ClickDelay = 10
 
 ### 纯后台点击模式
 
-```
-[ClickMode]
-UseMouseClick = false       # 不使用鼠标点击
-BringToFront = false        # 不将窗口移到前台
-UseFlaUIClick = true        # 使用 FlaUI 后台点击
-
-[Performance]
-ClickDelay = 30
+```json
+{
+    "UseMouseClick": false,
+    "BringToFront": false,
+    "UseFlaUIClick": true,
+    "ClickDelay": 30
+}
 ```
 
 > [!TIP]
@@ -441,6 +459,7 @@ ClickDelay = 30
 - 全局键盘钩子，不影响其他应用的正常使用
 - 单实例运行保护，防止重复启动
 - 点击后自动恢复鼠标位置
+- 提供图形化配置界面
 
 
 ## ❓ 常见问题
@@ -448,28 +467,29 @@ ClickDelay = 30
 ### Q: 按 Alt+F 没有反应？
 
 1. 确保目标窗口在前台且已获得焦点
-2. 检查窗口是否在 IgnoreWindowClass 忽略列表中
-3. 部分 UWP 应用可能不支持 UIA3 协议
+2. 部分 UWP 应用可能不支持 UIA3 协议
 
 ### Q: 标签显示位置不对？
 
 修改配置文件中的偏移值：
 
-```
-[Label]
-OffsetX = -20    # 向左偏移
-OffsetY = -5       # 向上偏移
+```json
+{
+    "OffsetX": -20,
+    "OffsetY": -5
+}
 ```
 
 ### Q: 扫描速度太慢？
 
 减少遍历深度和过滤小控件：
 
-```
-[Filter]
-MinWidth = 20
-MinHeight = 20
-MaxDepth = 30
+```json
+{
+    "MinWidth": 20,
+    "MinHeight": 20,
+    "MaxDepth": 30
+}
 ```
 
 ### Q: 某些控件识别不到？
@@ -478,38 +498,20 @@ MaxDepth = 30
 - 尝试增加 MaxDepth 值
 - 某些控件类型(如 Image、Text)默认不可交互
 
-### Q: 如何添加忽略的窗口？
-
-在配置文件中追加窗口类名：
-
-```
-[Filter]
-IgnoreWindowClass = Progman,WorkerW,Shell_TrayWnd,Windows.UI.Core.CoreWindow,MyAppClass
-```
-
-> [!TIP]
-> 可使用 Spy++ 或 WinSpy 工具查看窗口类名
-
 ### Q: 如何在脚本中使用 API？
 
 ```bash
 # 完整的自动化流程示例
-curl -X POST http://localhost:51401/api/show    # 扫描()注意焦点窗口
+curl -X POST http://localhost:51401/api/show
 sleep 1
-curl http://localhost:51401/api/scan                    # 获取结果
-curl -X POST http://localhost:51401/api/click -d '{"label":"DJ"}'  # 点击
-curl -X POST http://localhost:51401/api/hide     # 清理
+curl http://localhost:51401/api/scan
+curl -X POST http://localhost:51401/api/click -d '{"label":"DJ"}'
+curl -X POST http://localhost:51401/api/hide
 ```
 
 ### Q: API 支持跨域访问吗？
 
 支持。已配置 CORS 头，可从浏览器中的网页直接调用
-
-### Q: 为什么交互使用的是鼠标而不是其他方式？
-
-- 使用其他方式与网页元素交互过于困难
-- 部分软件可能会检测或禁止此类交互方式
-- 后续将支持选择更多的交互方式
 
 ### Q: 输入按键没反应？
 
