@@ -82,10 +82,14 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 | POST | `/api/show` | 显示标签并扫描 |
 | POST | `/api/hide` | 隐藏标签 |
 | POST | `/api/click` | 通过标签点击控件 |
+| POST | `/api/click?right=1` | 标签右键点击 |
+| POST | `/api/click?double=1` | 标签双击 |
 | GET | `/api/click/{x}/{y}` | 坐标点击 |
 | GET | `/api/click/{x}/{y}?useBackend=1` | 坐标后台点击 |
 | GET | `/api/clickR/{x}/{y}` | 坐标右键点击 |
+| GET | `/api/clickR/{x}/{y}?useBackend=1` | 坐标后台右键点击 |
 | GET | `/api/dblclick/{x}/{y}` | 坐标双击 |
+| GET | `/api/dblclick/{x}/{y}?useBackend=1` | 坐标后台双击 |
 | GET | `/api/clickAt?x=&y=&useBackend=1` | 坐标点击(支持后台) |
 | POST | `/api/clickAt` | 坐标点击(支持后台) |
 | GET | `/api/windows` | 获取所有窗口列表 |
@@ -93,6 +97,7 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 | POST | `/api/scanByTitle` | 通过窗口标题扫描控件 |
 | GET | `/api/clickByTitle?title=xxx&x=&y=` | 通过窗口标题点击控件(支持后台) |
 | POST | `/api/clickByTitle` | 通过窗口标题点击控件(支持后台) |
+| GET | `/api/activate?title=xxx` | 激活窗口(切换到前台) |
 | GET | `/api/mouse` | 获取鼠标当前位置 |
 | GET | `/api/move/{x}/{y}` | 移动鼠标 |
 | GET | `/api/drag/{x1}/{y1}/{x2}/{y2}` | 拖拽操作 |
@@ -138,30 +143,49 @@ curl -X POST http://localhost:51401/api/click \
   -H "Content-Type: application/json" \
   -d '{"label": "DJ"}'
 
+# 标签右键点击
+curl -X POST http://localhost:51401/api/click \
+  -H "Content-Type: application/json" \
+  -d '{"label": "DJ", "right": true}'
+
+# 标签双击
+curl -X POST http://localhost:51401/api/click \
+  -H "Content-Type: application/json" \
+  -d '{"label": "DJ", "double": true}'
+
 # 通过坐标点击
 curl http://localhost:51401/api/click/500/300
 
 # 坐标后台点击
 curl "http://localhost:51401/api/click/500/300?useBackend=1"
 
-# 右键点击
+# 坐标右键点击
 curl http://localhost:51401/api/clickR/500/300
 
-# 双击
+# 坐标后台右键点击
+curl "http://localhost:51401/api/clickR/500/300?useBackend=1"
+
+# 坐标双击
 curl http://localhost:51401/api/dblclick/500/300
 
-# 坐标点击
+# 坐标后台双击
+curl "http://localhost:51401/api/dblclick/500/300?useBackend=1"
+
+# 灵活的坐标点击（支持后台）
 curl "http://localhost:51401/api/clickAt?x=500&y=300&useBackend=1"
 
 # POST 方式点击
 curl -X POST http://localhost:51401/api/clickAt \
   -H "Content-Type: application/json" \
-  -d '{"x": 500, "y": 300, "useBackend": true, "right": false}'
+  -d '{"x": 500, "y": 300, "useBackend": true, "right": false, "double": false}'
 ```
 
 ### 窗口管理
 
 ```bash
+# 激活窗口（切换到前台）
+curl "http://localhost:51401/api/activate?title=记事本"
+
 # 获取所有窗口列表
 curl http://localhost:51401/api/windows
 ```
@@ -516,6 +540,33 @@ curl -X POST http://localhost:51401/api/hide
 ### Q: 输入按键没反应？
 
 部分控件可能不支持后台点击，改成鼠标点击试试
+
+### Q: 后台右键点击不成功？
+
+尝试先将窗口切换到前台再使用鼠标模式右键点击
+
+### Q: 后台激活浏览器窗口失败？
+
+浏览器窗口有保护机制，不允许通过 API 强行激活到前台，这是 Windows 和浏览器的安全限制。
+对于浏览器窗口：
+
+1. 手动点击 切换到浏览器窗口
+2. 使用后台点击 浏览器窗口可以在后台正常操作
+
+```bash
+# 后台点击浏览器中的按钮
+curl -X POST http://localhost:51401/api/clickByTitle \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Codeforces", "x": 500, "y": 300, "useBackend": true}'
+```
+
+实际上对于大多数操作，后台点击(useBackend: true)已经足够了，不需要切换到前台，Vimina 的后台点击功能就是专门为这种情况设计的
+
+> [!TIP]
+> 如果一定要切换到前台，这种方法也是可以的(先切换到前台再右键点击)
+> ```bash
+> curl "http://localhost:51401/api/clickByTitle?title=Codeforces&x=100&y=200&right=1"
+> ```
 
 ---
 <p align="center"> Made with 💚 by Vimina </p>
