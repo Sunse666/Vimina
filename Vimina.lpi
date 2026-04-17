@@ -5,7 +5,6 @@
     <General>
       <Flags>
         <SaveClosedFiles Value="False"/>
-        <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="None"/>
       <Title Value="Vimina"/>

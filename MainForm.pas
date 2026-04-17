@@ -6,31 +6,31 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs, StdCtrls, ExtCtrls,
-  Menus, LCLType, LCLIntf, Windows, Messages, fpjson,
-  Config, UIAutomation, HttpServer, MarkerForm;
+  Menus, LCLType, LCLIntf, Windows, Messages,
+  Config, fpJSON, UIAutomation, MarkerForm, ConfigForm, HttpServer;
 
 type
-  { TfrmMain }
   TfrmMain = class(TForm)
     lblInfo1: TLabel;
     lblInfo2: TLabel;
     lblInfo3: TLabel;
     lblApi: TLabel;
-    TrayIcon: TTrayIcon;
+    btnConfig: TButton;
     PopupMenu1: TPopupMenu;
     miShow: TMenuItem;
-    miDataDir: TMenuItem;
+    miConfig: TMenuItem;
     miSep: TMenuItem;
     miExit: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
-    procedure TrayIconClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
     procedure miShowClick(Sender: TObject);
-    procedure miDataDirClick(Sender: TObject);
+    procedure miConfigClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
+    procedure btnConfigClick(Sender: TObject);
   private
     FConfig: TViminaConfig;
+    FTrayIcon: TTrayIcon;
     FMarkers: TList;
     FControlList: array of TControlInfo;
     FControlCount: Integer;
@@ -41,9 +41,11 @@ type
     FHotKeyId_Esc: ATOM;
     FHotKeyId_AltR: ATOM;
     FKeyboardHook: HHOOK;
-    FHttpServer: TViminaHttpServer;
     FDataDir: string;
+    FConfigFile: string;
     FUIAuto: TUIAutomationHelper;
+    FLastScanHwnd: HWND;
+    FHttpServer: TViminaHttpServer;
     
     procedure RegisterHotKeys;
     procedure UnregisterHotKeys;
@@ -55,22 +57,23 @@ type
     procedure HighlightMarkers(const Input: string);
     function DoScan: Boolean;
     procedure CreateMarkerWindow(X, Y: Integer; const ALabel: string);
-    procedure PerformClick(const Ctrl: TControlInfo);
+    procedure PerformClick(const Ctrl: TControlInfo; RightClick, DoubleClick: Boolean);
     procedure DeduplicateControls;
     procedure SaveScanResult;
-    procedure HttpClickLabel(const ALabel: string);
+    procedure TrayIconClick(Sender: TObject);
     procedure HttpShowMarkers;
     procedure HttpHideMarkers;
   protected
     procedure WMHotKey(var Msg: TMessage); message WM_HOTKEY;
-    procedure WndProc(var Message: TMessage); override;
   public
   end;
 
 var
   frmMain: TfrmMain;
-  
-function KeyboardHookProc(nCode: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall;
+
+const
+  WH_KEYBOARD_LL = 13;
+  LLKHF_INJECTED = $00000010;
 
 type
   PKBDLLHOOKSTRUCT = ^TKBDLLHOOKSTRUCT;
@@ -82,9 +85,7 @@ type
     dwExtraInfo: ULONG_PTR;
   end;
 
-const
-  WH_KEYBOARD_LL = 13;
-  LLKHF_INJECTED = $00000010;
+function KeyboardHookProc(nCode: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall;
 
 implementation
 
@@ -97,7 +98,7 @@ function KeyboardHookProc(nCode: Integer; wParam: WPARAM; lParam: LPARAM): LRESU
 var
   KeyInfo: PKBDLLHOOKSTRUCT;
   VKCode: DWORD;
-  Char: string;
+  Ch: string;
   HasPrefix: Boolean;
   I: Integer;
 begin
@@ -108,7 +109,6 @@ begin
     
   KeyInfo := PKBDLLHOOKSTRUCT(lParam);
   
-  // 检查是否是注入的输入
   if (KeyInfo^.flags and LLKHF_INJECTED) <> 0 then
     Exit;
     
@@ -116,26 +116,23 @@ begin
   begin
     VKCode := KeyInfo^.vkCode;
     
-    // A-Z 键
     if (VKCode >= Ord('A')) and (VKCode <= Ord('Z')) then
     begin
-      Char := Chr(VKCode);
-      frmMain.FInputBuffer := frmMain.FInputBuffer + Char;
+      Ch := Chr(VKCode);
+      frmMain.FInputBuffer := frmMain.FInputBuffer + Ch;
       frmMain.HighlightMarkers(frmMain.FInputBuffer);
       
-      // 检查是否完全匹配
       for I := 0 to frmMain.FControlCount - 1 do
       begin
         if frmMain.FControlList[I].LabelText = frmMain.FInputBuffer then
         begin
-          frmMain.PerformClick(frmMain.FControlList[I]);
+          frmMain.PerformClick(frmMain.FControlList[I], False, False);
           frmMain.ClearAllMarkers;
           Result := 1;
           Exit;
         end;
       end;
       
-      // 检查是否有前缀匹配
       HasPrefix := False;
       for I := 0 to frmMain.FControlCount - 1 do
       begin
@@ -171,108 +168,6 @@ begin
   end;
 end;
 
-{ TfrmMain }
-
-procedure TfrmMain.FormCreate(Sender: TObject);
-begin
-  FDataDir := ExtractFilePath(Application.ExeName) + 'data' + PathDelim;
-  ForceDirectories(FDataDir);
-  
-  FConfig := GetDefaultConfig;
-  FMarkers := TList.Create;
-  SetLength(FControlList, 1000);  // 最多1000个控件
-  FControlCount := 0;
-  FIsMarkerVisible := False;
-  FInputBuffer := '';
-  FLabelIndex := 0;
-  
-  FUIAuto := TUIAutomationHelper.Create;
-  
-  RegisterHotKeys;
-  InstallKeyboardHook;
-  
-  // 启动 HTTP 服务器
-  FHttpServer := TViminaHttpServer.Create(Self, FDataDir);
-  FHttpServer.OnClickLabel := @HttpClickLabel;
-  FHttpServer.OnShowMarkers := @HttpShowMarkers;
-  FHttpServer.OnHideMarkers := @HttpHideMarkers;
-  
-  try
-    FHttpServer.Active := True;
-    lblApi.Caption := Format('API: http://localhost:%d', [FHttpServer.Port]);
-    lblApi.Font.Color := clGreen;
-  except
-    on E: Exception do
-    begin
-      lblApi.Caption := 'API: 启动失败 - ' + E.Message;
-      lblApi.Font.Color := clRed;
-    end;
-  end;
-  
-  // 托盘图标
-  TrayIcon.Visible := True;
-  TrayIcon.Hint := 'Vimina - 桌面自动化工具';
-  TrayIcon.PopupMenu := PopupMenu1;
-  
-  // 默认隐藏主窗口
-  WindowState := wsMinimized;
-  Application.ShowMainForm := False;
-end;
-
-procedure TfrmMain.FormDestroy(Sender: TObject);
-begin
-  UnregisterHotKeys;
-  UninstallKeyboardHook;
-  ClearAllMarkers;
-  FMarkers.Free;
-  FUIAuto.Free;
-  
-  if Assigned(FHttpServer) then
-  begin
-    FHttpServer.Active := False;
-    FHttpServer.Free;
-  end;
-end;
-
-procedure TfrmMain.FormClose(Sender: TObject; var CloseAction: TCloseAction);
-begin
-  ClearAllMarkers;
-end;
-
-procedure TfrmMain.TrayIconClick(Sender: TObject);
-begin
-  if WindowState = wsMinimized then
-  begin
-    Show;
-    WindowState := wsNormal;
-    BringToFront;
-  end
-  else
-  begin
-    WindowState := wsMinimized;
-    Hide;
-  end;
-end;
-
-procedure TfrmMain.miShowClick(Sender: TObject);
-begin
-  Show;
-  WindowState := wsNormal;
-  BringToFront;
-end;
-
-procedure TfrmMain.miDataDirClick(Sender: TObject);
-begin
-  {$IFDEF WINDOWS}
-  ShellExecute(0, 'open', PChar(FDataDir), nil, nil, SW_SHOW);
-  {$ENDIF}
-end;
-
-procedure TfrmMain.miExitClick(Sender: TObject);
-begin
-  Application.Terminate;
-end;
-
 procedure TfrmMain.RegisterHotKeys;
 begin
   FHotKeyId_AltF := GlobalAddAtom('Vimina_HotKey_AltF');
@@ -306,6 +201,128 @@ begin
     UnhookWindowsHookEx(FKeyboardHook);
 end;
 
+procedure TfrmMain.FormCreate(Sender: TObject);
+begin
+  Caption := 'Vimina';
+  
+  FDataDir := ExtractFilePath(Application.ExeName) + 'data' + PathDelim;
+  ForceDirectories(FDataDir);
+  
+  FConfigFile := ExtractFilePath(Application.ExeName) + 'config.json';
+  FConfig := GetDefaultConfig;
+  
+  FMarkers := TList.Create;
+  SetLength(FControlList, 1000);
+  FControlCount := 0;
+  FIsMarkerVisible := False;
+  FInputBuffer := '';
+  FLabelIndex := 0;
+  FLastScanHwnd := 0;
+  
+  FUIAuto := TUIAutomationHelper.Create;
+  
+  RegisterHotKeys;
+  InstallKeyboardHook;
+  
+  FTrayIcon := TTrayIcon.Create(Self);
+  FTrayIcon.Hint := 'Vimina - 桌面自动化工具';
+  FTrayIcon.PopupMenu := PopupMenu1;
+  FTrayIcon.OnClick := @TrayIconClick;
+  
+  try
+    if FileExists(ExtractFilePath(Application.ExeName) + 'logo.ico') then
+    begin
+      FTrayIcon.Icon.LoadFromFile(ExtractFilePath(Application.ExeName) + 'logo.ico');
+      Application.Icon.LoadFromFile(ExtractFilePath(Application.ExeName) + 'logo.ico');
+    end;
+  except
+  end;
+  
+  FHttpServer := TViminaHttpServer.Create(nil, FDataDir, FConfigFile);
+  FHttpServer.OnShowMarkers := @HttpShowMarkers;
+  FHttpServer.OnHideMarkers := @HttpHideMarkers;
+  try
+    FHttpServer.Active := True;
+  except
+    on E: Exception do
+      lblApi.Caption := 'API启动失败: ' + E.Message;
+  end;
+end;
+
+procedure TfrmMain.FormShow(Sender: TObject);
+begin
+  FTrayIcon.Visible := True;
+  lblApi.Caption := 'API: http://localhost:51401';
+  lblApi.Font.Color := clGreen;
+end;
+
+procedure TfrmMain.FormDestroy(Sender: TObject);
+begin
+  if Assigned(FHttpServer) then
+  begin
+    FHttpServer.Active := False;
+    FHttpServer.Free;
+  end;
+  
+  UnregisterHotKeys;
+  UninstallKeyboardHook;
+  ClearAllMarkers;
+  FMarkers.Free;
+  FUIAuto.Free;
+  
+  if Assigned(FTrayIcon) then
+  begin
+    FTrayIcon.Visible := False;
+    FTrayIcon.Free;
+  end;
+end;
+
+procedure TfrmMain.miShowClick(Sender: TObject);
+begin
+  Show;
+  WindowState := wsNormal;
+  BringToFront;
+end;
+
+procedure TfrmMain.miConfigClick(Sender: TObject);
+begin
+  btnConfigClick(Sender);
+end;
+
+procedure TfrmMain.miExitClick(Sender: TObject);
+begin
+  Application.Terminate;
+end;
+
+procedure TfrmMain.btnConfigClick(Sender: TObject);
+var
+  ConfigDlg: TfrmConfig;
+begin
+  ConfigDlg := TfrmConfig.Create(Self);
+  try
+    ConfigDlg.SetConfig(@FConfig);
+    if ConfigDlg.ShowModal = mrOK then
+    begin
+      SaveConfig(FConfigFile, FConfig);
+      ShowMessage('配置已保存，部分设置需要重新扫描后生效。');
+    end;
+  finally
+    ConfigDlg.Free;
+  end;
+end;
+
+procedure TfrmMain.TrayIconClick(Sender: TObject);
+begin
+  if Visible then
+    Hide
+  else
+  begin
+    Show;
+    WindowState := wsNormal;
+    BringToFront;
+  end;
+end;
+
 procedure TfrmMain.WMHotKey(var Msg: TMessage);
 begin
   if Msg.WParam = FHotKeyId_AltF then
@@ -325,32 +342,13 @@ begin
   end;
 end;
 
-procedure TfrmMain.WndProc(var Message: TMessage);
-begin
-  inherited WndProc(Message);
-end;
-
 function TfrmMain.GenerateNextLabel: string;
-var
-  Chars: string;
-  Index, First, Second: Integer;
 begin
   Inc(FLabelIndex);
-  
   if FLabelIndex <= Length(PREDEFINED_LABELS) then
     Result := PREDEFINED_LABELS[FLabelIndex - 1]
   else
-  begin
-    Chars := 'ASDFGHJKLQWERTYUIOPZXCVBNM';
-    Index := FLabelIndex - Length(PREDEFINED_LABELS);
-    First := (Index - 1) div Length(Chars) + 1;
-    Second := ((Index - 1) mod Length(Chars)) + 1;
-    
-    if First <= Length(Chars) then
-      Result := Chars[First] + Chars[Second]
-    else
-      Result := 'Z' + IntToStr(Index);
-  end;
+    Result := 'Z' + IntToStr(FLabelIndex);
 end;
 
 procedure TfrmMain.ToggleMarkers;
@@ -452,7 +450,8 @@ begin
   GetWindowText(ForeWnd, WindowTitle, 256);
   GetClassName(ForeWnd, WndClassName, 256);
   
-  FControlCount := FUIAuto.GetInteractiveControls(ForeWnd, FControlList);
+  FLastScanHwnd := ForeWnd;
+  FControlCount := FUIAuto.GetInteractiveControls(ForeWnd, FControlList, FConfig.FilterCfg.MaxDepth);
   
   if FControlCount = 0 then
   begin
@@ -466,6 +465,7 @@ begin
   for I := 0 to FControlCount - 1 do
   begin
     FControlList[I].LabelText := GenerateNextLabel;
+    FControlList[I].Hwnd := ForeWnd;
   end;
   
   Result := True;
@@ -494,7 +494,6 @@ begin
     KeyX := (FControlList[I].CenterX div 10) * 10;
     KeyY := (FControlList[I].CenterY div 10) * 10;
     
-    // 标记相似位置的控件
     for J := I + 1 to FControlCount - 1 do
     begin
       if not Seen[J] then
@@ -527,18 +526,23 @@ var
   PosJSON: TJSONObject;
   TypeName: string;
   TypeCount: Integer;
+  WindowTitle: array[0..255] of Char;
+  WndClassName: array[0..255] of Char;
 begin
   RootJSON := TJSONObject.Create;
   try
     RootJSON.Add('success', True);
     RootJSON.Add('timestamp', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
     
+    GetWindowText(FLastScanHwnd, WindowTitle, 256);
+    GetClassName(FLastScanHwnd, WndClassName, 256);
+    
     WindowJSON := TJSONObject.Create;
-    WindowJSON.Add('title', 'Current Window');
-    WindowJSON.Add('class', 'Unknown');
+    WindowJSON.Add('title', WindowTitle);
+    WindowJSON.Add('class', WndClassName);
+    WindowJSON.Add('handle', FLastScanHwnd);
     RootJSON.Add('window', WindowJSON);
     
-    // 统计控件类型
     TypeStats := TJSONObject.Create;
     for I := 0 to FControlCount - 1 do
     begin
@@ -553,9 +557,9 @@ begin
     SummaryJSON := TJSONObject.Create;
     SummaryJSON.Add('totalControls', FControlCount);
     SummaryJSON.Add('byType', TypeStats);
+    SummaryJSON.Add('description', Format('窗口「%s」共有 %d 个可交互控件', [WindowTitle, FControlCount]));
     RootJSON.Add('summary', SummaryJSON);
     
-    // 快速参考
     QuickRefArray := TJSONArray.Create;
     for I := 0 to FControlCount - 1 do
     begin
@@ -567,7 +571,6 @@ begin
     end;
     RootJSON.Add('quickReference', QuickRefArray);
     
-    // 控件详情
     ControlsArray := TJSONArray.Create;
     for I := 0 to FControlCount - 1 do
     begin
@@ -593,7 +596,6 @@ begin
     RootJSON.Free;
   end;
   
-  // 保存标签映射
   LabelMapJSON := TJSONObject.Create;
   try
     for I := 0 to FControlCount - 1 do
@@ -619,44 +621,46 @@ begin
   FMarkers.Add(Marker);
 end;
 
-procedure TfrmMain.PerformClick(const Ctrl: TControlInfo);
+procedure TfrmMain.PerformClick(const Ctrl: TControlInfo; RightClick, DoubleClick: Boolean);
 var
   OrigPos: TPoint;
 begin
   GetCursorPos(OrigPos);
   
+  if FConfig.ClickModeCfg.BringToFront and (Ctrl.Hwnd <> 0) then
+  begin
+    SetForegroundWindow(Ctrl.Hwnd);
+    Sleep(50);
+  end;
+  
   SetCursorPos(Ctrl.CenterX, Ctrl.CenterY);
   Sleep(10);
-  mouse_event(MOUSEEVENTF_LEFTDOWN or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-  Sleep(FConfig.PerfCfg.ClickDelay);
   
-  SetCursorPos(OrigPos.X, OrigPos.Y);
-end;
-
-procedure TfrmMain.HttpClickLabel(const ALabel: string);
-var
-  I: Integer;
-begin
-  for I := 0 to FControlCount - 1 do
+  if DoubleClick then
   begin
-    if FControlList[I].LabelText = UpperCase(ALabel) then
-    begin
-      PerformClick(FControlList[I]);
-      Break;
-    end;
-  end;
+    mouse_event(MOUSEEVENTF_LEFTDOWN or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+    Sleep(50);
+    mouse_event(MOUSEEVENTF_LEFTDOWN or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+  end
+  else if RightClick then
+    mouse_event(MOUSEEVENTF_RIGHTDOWN or MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
+  else
+    mouse_event(MOUSEEVENTF_LEFTDOWN or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+  
+  Sleep(FConfig.PerfCfg.ClickDelay);
+  SetCursorPos(OrigPos.X, OrigPos.Y);
 end;
 
 procedure TfrmMain.HttpShowMarkers;
 begin
-  if not FIsMarkerVisible then
-    ToggleMarkers;
+  if FIsMarkerVisible then
+    ClearAllMarkers;
+  ToggleMarkers;
 end;
 
 procedure TfrmMain.HttpHideMarkers;
 begin
-  if FIsMarkerVisible then
-    ClearAllMarkers;
+  ClearAllMarkers;
 end;
 
 end.

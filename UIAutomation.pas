@@ -15,7 +15,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    function GetInteractiveControls(Hwnd: HWND; var Controls: array of TControlInfo): Integer;
+    function GetInteractiveControls(Hwnd: HWND; var Controls: array of TControlInfo; MaxDepth: Integer = 50): Integer;
     function EnumerateElements(RootElement: OleVariant; var Controls: array of TControlInfo; 
       MaxControls: Integer; CurrentLevel: Integer; MaxLevel: Integer): Integer;
   end;
@@ -44,13 +44,11 @@ begin
   FInitialized := False;
   
   try
-    CoInitialize(nil);
     FAutomation := CreateOleObject('UIAutomationCore.CUIAutomation');
     FInitialized := True;
   except
     on E: Exception do
     begin
-      // 尝试使用 CUIAutomation8
       try
         FAutomation := CreateOleObject('UIAutomationCore.CUIAutomation8');
         FInitialized := True;
@@ -66,7 +64,6 @@ begin
   if FInitialized then
   begin
     FAutomation := Unassigned;
-    CoUninitialize;
   end;
   inherited Destroy;
 end;
@@ -104,20 +101,17 @@ begin
     while not VarIsNull(Element) and not VarIsEmpty(Element) and (Count < MaxControls) do
     begin
       try
-        // 获取控件类型
         ControlType := Element.CurrentControlType;
         
         if IsInteractiveControl(ControlType) then
         begin
           BoundingRect := Element.CurrentBoundingRectangle;
           
-          // 解析边界矩形
           Left := Integer(Trunc(Double(BoundingRect.left)));
           Top := Integer(Trunc(Double(BoundingRect.top)));
           Width := Integer(Trunc(Double(BoundingRect.right - BoundingRect.left)));
           Height := Integer(Trunc(Double(BoundingRect.bottom - BoundingRect.top)));
           
-          // 过滤条件
           if (Width >= 8) and (Height >= 8) and
              (Left + Width > 0) and (Top + Height > 0) and
              (Left < ScreenWidth) and (Top < ScreenHeight) then
@@ -142,12 +136,12 @@ begin
             Controls[Count].CenterX := Left + Width div 2;
             Controls[Count].CenterY := Top + Height div 2;
             Controls[Count].LabelText := '';
+            Controls[Count].Hwnd := 0;
             
             Inc(Count);
           end;
         end;
         
-        // 递归遍历子元素
         if Count < MaxControls then
         begin
           Count := Count + EnumerateElements(Element, Controls[Count], 
@@ -156,7 +150,6 @@ begin
         
         Element := Walker.GetNextSiblingElement(Element);
       except
-        // 忽略单个元素错误，继续下一个
         Element := Walker.GetNextSiblingElement(Element);
       end;
     end;
@@ -168,7 +161,7 @@ begin
 end;
 
 function TUIAutomationHelper.GetInteractiveControls(Hwnd: HWND; 
-  var Controls: array of TControlInfo): Integer;
+  var Controls: array of TControlInfo; MaxDepth: Integer): Integer;
 var
   RootElement: OleVariant;
 begin
@@ -183,7 +176,7 @@ begin
     if VarIsNull(RootElement) or VarIsEmpty(RootElement) then
       Exit;
       
-    Result := EnumerateElements(RootElement, Controls, Length(Controls), 0, 50);
+    Result := EnumerateElements(RootElement, Controls, Length(Controls), 0, MaxDepth);
   except
     Result := 0;
   end;

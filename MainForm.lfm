@@ -1,21 +1,20 @@
 object frmMain: TfrmMain
   Left = 320
-  Height = 170
+  Height = 200
   Top = 240
-  Width = 320
-  BorderStyle = bsDialog
+  Width = 360
   Caption = 'Vimina'
-  ClientHeight = 170
-  ClientWidth = 320
-  OnClose = FormClose
+  ClientHeight = 200
+  ClientWidth = 360
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnShow = FormShow
   Position = poScreenCenter
   LCLVersion = '2.2.6.0'
   object lblInfo1: TLabel
     Left = 40
     Height = 19
-    Top = 30
+    Top = 20
     Width = 161
     Caption = 'Alt+F 显示标记'
     Font.Height = -16
@@ -24,7 +23,7 @@ object frmMain: TfrmMain
   object lblInfo2: TLabel
     Left = 40
     Height = 17
-    Top = 60
+    Top = 48
     Width = 186
     Caption = 'Esc 清除 | Alt+R 刷新'
     Font.Color = 6710886
@@ -34,36 +33,42 @@ object frmMain: TfrmMain
   object lblInfo3: TLabel
     Left = 40
     Height = 15
-    Top = 90
+    Top = 76
     Width = 180
     Caption = '输入标签字母点击对应控件'
     Font.Color = 8421504
+    Font.Height = -13
     ParentFont = False
   end
   object lblApi: TLabel
     Left = 40
     Height = 15
-    Top = 120
+    Top = 104
     Width = 112
     Caption = 'API: 启动中...'
     Font.Color = 32768
+    Font.Height = -13
     ParentFont = False
   end
-  object TrayIcon: TTrayIcon
-    OnClick = TrayIconClick
-    Left = 280
-    Top = 8
+  object btnConfig: TButton
+    Left = 40
+    Height = 28
+    Top = 140
+    Width = 100
+    Caption = '配置(&C)'
+    OnClick = btnConfigClick
+    TabOrder = 0
   end
   object PopupMenu1: TPopupMenu
-    Left = 248
+    Left = 280
     Top = 8
     object miShow: TMenuItem
       Caption = '打开(&O)'
       OnClick = miShowClick
     end
-    object miDataDir: TMenuItem
-      Caption = '数据目录(&D)'
-      OnClick = miDataDirClick
+    object miConfig: TMenuItem
+      Caption = '配置(&C)'
+      OnClick = miConfigClick
     end
     object miSep: TMenuItem
       Caption = '-'
