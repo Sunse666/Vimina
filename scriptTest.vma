@@ -1,0 +1,125 @@
+// 延时(毫秒)
+sleep(1000)
+
+// 普通左键点击
+click(500, 300)
+
+// 后台左键点击 (不移动鼠标)
+click(500, 300, useBackend=1)
+
+// 右键点击
+rightClick(600, 400)
+
+// 后台右键点击
+rightClick(600, 400, useBackend=1)
+
+// 双击
+doubleClick(100, 100)
+
+// 后台双击
+doubleClick(100, 100, useBackend=1)
+
+// 拖拽
+drag(100, 100, 500, 500)
+
+// 移动鼠标
+moveTo(300, 300)
+
+// 通过标题点击 (先激活到前台)
+clickByTitle("记事本", 100, 200)
+
+// 通过标题后台点击 (不切换窗口)
+clickByTitle("记事本", 100, 200, useBackend=1)
+
+// 通过标题点击并激活到前台
+clickByTitle("记事本", 100, 200, useBackend=0, bringToFront=1)
+
+// 激活窗口到前台
+activate("记事本")
+
+// 查找窗口
+var hwnd = findWindow("记事本")
+
+// 关闭窗口
+closeWindow("记事本")
+
+// 最小化窗口
+minimizeWindow("记事本")
+
+// 最大化窗口
+maximizeWindow("记事本")
+
+// 恢复窗口
+restoreWindow("记事本")
+
+// 输入文本
+input("Hello World")
+
+// 模拟按键
+keyPress("Ctrl+A")
+keyPress("Alt+F4")
+
+// 按下键
+keyDown("Alt")
+
+// 抬起键
+keyUp("Alt")
+
+// 扫描前台窗口
+scan()
+
+// 通过标题扫描
+scanWindow("记事本")
+
+// 点击标签
+clickLabel("按钮")
+
+// 显示标签
+show()
+
+// 隐藏标签
+hide()
+
+// 等待窗口出现 (默认30秒超时)
+waitFor("新窗口")
+
+// 等待窗口出现 (自定义超时60秒)
+waitFor("新窗口", timeout=60)
+
+// 获取鼠标位置
+var pos = getMousePos()
+
+// 获取屏幕尺寸
+var size = getScreenSize()
+
+// 获取窗口列表
+var windows = getWindows()
+
+// 获取扫描结果
+var result = getLastScanResult()
+
+// 获取标签
+var labels = getLabels()
+
+// 生成随机数
+var num = rand(1, 100)
+
+// 截图
+screenshot()
+
+// 日志
+log("脚本执行中...")
+
+// 变量赋值
+var count = 10
+
+// 条件判断
+if windowexists("记事本")
+    log("记事本窗口存在")
+end
+
+// 循环执行
+loop(3)
+    click(100, 100)
+    sleep(200)
+endloop

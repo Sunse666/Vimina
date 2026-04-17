@@ -62,6 +62,15 @@
 - 返回 JSON 格式数据，便于 AI 分析和程序调用
 - 支持 CORS 跨域访问
 
+### 📜 VMA 脚本支持
+- 支持编写自动化脚本文件(.vma)
+- 可通过右键菜单导入并执行脚本
+- 内置丰富的脚本命令，包括：
+  - 延时、鼠标点击、键盘操作
+  - 窗口管理、控件扫描
+  - 条件判断、循环控制
+  - 变量赋值、日志输出
+
 ### 🔒 后台操作支持
 - 支持不移动鼠标完成点击操作
 - 支持不切换窗口焦点操作后台窗口
@@ -103,6 +112,8 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 | GET | `/api/drag/{x1}/{y1}/{x2}/{y2}` | 拖拽操作 |
 | POST | `/api/input` | 模拟键盘输入文本 |
 | GET | `/api/status` | 获取服务状态 |
+| POST | `/api/vma/run` | 运行 VMA 脚本 |
+| POST | `/api/vma/runFile` | 运行 VMA 脚本文件 |
 
 ### 接口详情
 
@@ -268,6 +279,30 @@ curl http://localhost:51401/api/status
 }
 ```
 
+### VMA 脚本 API
+
+```bash
+# 运行 VMA 脚本内容
+curl -X POST http://localhost:51401/api/vma/run \
+  -H "Content-Type: application/json" \
+  -d '{"script": "click(500, 300)\nsleep(1000)\nlog(\"完成\")"}'
+
+# 运行 VMA 脚本文件
+curl -X POST http://localhost:51401/api/vma/runFile \
+  -H "Content-Type: application/json" \
+  -d '{"file": "C:\\path\\to\\script.vma"}'
+```
+
+响应示例：
+
+```JSON
+{
+  "success": true,
+  "log": ["完成"],
+  "linesExecuted": 3
+}
+```
+
 ### 与 AI 集成
 
 Vimina 的 API 设计对 AI 友好，扫描结果包含丰富的语义信息：
@@ -286,6 +321,149 @@ print(result["quickReference"])
 
 # 3. AI 决策后点击目标控件(注意当前前台窗口)
 requests.post("http://localhost:51401/api/click", json={"label": "DJ"})
+```
+
+### 📜 VMA 脚本
+
+Vimina 支持编写自动化脚本文件(.vma)，可以通过右键菜单导入并执行脚本。
+
+#### 使用方法
+
+1. 在 Vimina 窗口内右键点击
+2. 选择「导入VMA脚本」
+3. 选择 .vma 文件即可运行
+
+#### 脚本命令
+
+##### 延时
+
+```vma
+sleep(1000)  # 延时 1000 毫秒
+```
+
+##### 鼠标操作
+
+```vma
+click(500, 300)                    # 左键点击
+click(500, 300, useBackend=1)     # 后台左键点击
+rightClick(600, 400)               # 右键点击
+rightClick(600, 400, useBackend=1) # 后台右键点击
+doubleClick(100, 100)              # 双击
+doubleClick(100, 100, useBackend=1) # 后台双击
+drag(100, 100, 500, 500)           # 拖拽
+moveTo(300, 300)                   # 移动鼠标
+```
+
+##### 窗口操作
+
+```vma
+clickByTitle("记事本", 100, 200)                    # 通过标题点击
+clickByTitle("记事本", 100, 200, useBackend=1)     # 后台点击
+clickByTitle("记事本", 100, 200, useBackend=0, bringToFront=1) # 点击并激活到前台
+activate("记事本")                                    # 激活窗口到前台
+var hwnd = findWindow("记事本")                       # 查找窗口
+closeWindow("记事本")                                 # 关闭窗口
+minimizeWindow("记事本")                              # 最小化窗口
+maximizeWindow("记事本")                              # 最大化窗口
+restoreWindow("记事本")                               # 恢复窗口
+```
+
+##### 键盘操作
+
+```vma
+input("Hello World")    # 输入文本
+keyPress("Ctrl+A")      # 模拟按键
+keyPress("Alt+F4")      # 模拟按键
+keyDown("Alt")          # 按下键
+keyUp("Alt")            # 抬起键
+```
+
+##### 控件扫描
+
+```vma
+scan()                  # 扫描前台窗口
+scanWindow("记事本")    # 通过标题扫描
+clickLabel("按钮")     # 点击标签
+show()                 # 显示标签
+hide()                 # 隐藏标签
+```
+
+##### 等待
+
+```vma
+waitFor("新窗口")              # 等待窗口出现 (默认30秒超时)
+waitFor("新窗口", timeout=60) # 等待窗口出现 (自定义超时60秒)
+```
+
+##### 获取信息
+
+```vma
+var pos = getMousePos()      # 获取鼠标位置
+var size = getScreenSize()   # 获取屏幕尺寸
+var windows = getWindows()   # 获取窗口列表
+var result = getLastScanResult() # 获取扫描结果
+var labels = getLabels()     # 获取标签
+var num = rand(1, 100)       # 生成随机数
+```
+
+##### 其他
+
+```vma
+screenshot()                # 截图
+log("脚本执行中...")        # 日志输出
+msg("提示信息")             # 消息提示 (记录到日志)
+```
+
+##### 控制流
+
+```vma
+// 变量赋值
+var count = 10
+
+// 条件判断
+if windowexists("记事本")
+    log("记事本窗口存在")
+end
+
+// 循环执行
+loop(3)
+    click(100, 100)
+    sleep(200)
+endloop
+```
+
+#### 示例脚本
+
+```vma
+// Vima 自动化脚本示例
+
+// 延时
+sleep(1000)
+
+// 鼠标点击
+click(500, 300)
+
+// 窗口操作
+activate("记事本")
+clickByTitle("记事本", 100, 200)
+
+// 键盘操作
+input("Hello World")
+keyPress("Ctrl+A")
+
+// 等待
+waitFor("新窗口", timeout=30)
+
+// 条件判断
+if windowexists("记事本")
+    log("记事本窗口存在")
+end
+
+// 循环
+loop(5)
+    click(100, 100)
+    sleep(500)
+endloop
 ```
 
 > [!TIP]
@@ -531,6 +709,29 @@ sleep 1
 curl http://localhost:51401/api/scan
 curl -X POST http://localhost:51401/api/click -d '{"label":"DJ"}'
 curl -X POST http://localhost:51401/api/hide
+```
+
+### Q: 如何使用 VMA 脚本？
+
+VMA 脚本是 Vimina 内置的自动化脚本功能，支持编写 .vma 文件来执行自动化任务。
+
+**方法一：通过界面导入**
+1. 在 Vimina 窗口内右键点击
+2. 选择「导入VMA脚本」
+3. 选择 .vma 文件即可运行
+
+**方法二：通过 API 调用**
+
+```bash
+# 直接运行脚本内容
+curl -X POST http://localhost:51401/api/vma/run \
+  -H "Content-Type: application/json" \
+  -d '{"script": "click(500,300)\nsleep(1000)"}'
+
+# 运行脚本文件
+curl -X POST http://localhost:51401/api/vma/runFile \
+  -H "Content-Type: application/json" \
+  -d '{"file": "C:\\path\\to\\script.vma"}'
 ```
 
 ### Q: API 支持跨域访问吗？
