@@ -1024,5 +1024,9 @@ curl -X POST http://localhost:51401/api/clickByTitle \
 > curl "http://localhost:51401/api/clickByTitle?title=Codeforces&x=100&y=200&right=1"
 > ```
 
+### Q: 与按键精灵相比怎么样？
+
+[详细对比](compare.md)
+
 ---
 <p align="center"> Made with 💚 by Vimina </p>
