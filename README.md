@@ -405,11 +405,10 @@ curl -X POST http://localhost:51401/api/vma/runFile \
 
 Vimina 支持将 VMA 脚本编译成独立的可执行文件：
 
-1. 下载 vma_runtime.exe 放在 Vimina.exe同一目录下
-2. 在脚本编辑器中编写脚本
-3. 点击「编译」按钮
-4. 选择输出路径和文件名
-5. 生成的 .exe 文件可以发送给其他人直接运行，无需安装 Vimina 或任何其他环境
+1. 在脚本编辑器中编写脚本
+2. 点击「编译」按钮
+3. 选择输出路径和文件名
+4. 生成的 .exe 文件可以发送给其他人直接运行，无需安装 Vimina 或任何其他环境
 
 > [!TIP]
 > 编译后的程序包含完整的 VMA 运行时，支持所有脚本命令，包括后台点击、窗口操作等功能
@@ -1025,9 +1024,9 @@ curl -X POST http://localhost:51401/api/clickByTitle \
 > curl "http://localhost:51401/api/clickByTitle?title=Codeforces&x=100&y=200&right=1"
 > ```
 
-### Q: 与按键精灵相比怎么样？
+### Q: 与其他相似功能软件对比相比怎么样？
 
-[详细对比](compare.md)
+[Codex Computer Use](vsCodex.md) [按键精灵](compare.md)
 
 ---
 <p align="center"> Made with 💚 by Vimina </p>
