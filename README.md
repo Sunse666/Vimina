@@ -405,11 +405,41 @@ curl -X POST http://localhost:51401/api/vma/runFile \
 
 Vimina 支持将 VMA 脚本编译成独立的可执行文件：
 
+**方式一：图形界面编译**
+
 1. 下载 vma_runtime.exe 放在 Vimina.exe同一目录下
 2. 在脚本编辑器中编写脚本
 3. 点击「编译」按钮
 4. 选择输出路径和文件名
 5. 生成的 .exe 文件可以发送给其他人直接运行，无需安装 Vimina 或任何其他环境
+
+**方式二：命令行编译**
+
+```bash
+# 编译脚本（输出到同目录，自动命名为 script.exe）
+# 注意：需要使用相对路径或完整路径执行 Vimina.exe
+.\Vimina.exe script.vma
+
+# 编译脚本并指定输出路径
+.\Vimina.exe -o output.exe script.vma
+
+# 或使用完整路径
+D:\path\to\Vimina.exe script.vma
+
+# 或使用完整参数
+.\Vimina.exe --compile script.vma output.exe
+```
+
+**命令行参数说明：**
+
+| 参数 | 说明 |
+|------|------|
+| `script.vma` | 要编译的脚本文件路径 |
+| `-o` 或 `--output` | 指定输出文件路径 |
+| `-c` 或 `--compile` | 明确指定编译模式 |
+
+> [!NOTE]
+> 在命令行中执行 Vimina.exe 时，需要使用相对路径（如 `.\Vimina.exe`）或完整路径（如 `D:\path\Vimina.exe`），因为 Vimina.exe 不在系统 PATH 环境变量中。
 
 > [!TIP]
 > 编译后的程序包含完整的 VMA 运行时，支持所有脚本命令，包括后台点击、窗口操作等功能
