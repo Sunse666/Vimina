@@ -1,11 +1,12 @@
 unit Config;
 
 {$mode objfpc}{$H+}
+{$codepage UTF8}
 
 interface
 
 uses
-  Classes, SysUtils, Graphics, fpjson, jsonparser;
+  Classes, SysUtils, Graphics, fpjson, jsonparser, jsonscanner, Windows;
 
 type
   TLabelConfig = record
@@ -30,11 +31,19 @@ type
     ClickDelay: Integer;
   end;
 
+  TClickModeConfig = record
+    UseMouseClick: Boolean;
+    BringToFront: Boolean;
+    UseBackendClick: Boolean;
+  end;
+
   TViminaConfig = record
     LabelCfg: TLabelConfig;
     FilterCfg: TFilterConfig;
     PerfCfg: TPerformanceConfig;
+    ClickModeCfg: TClickModeConfig;
   end;
+  PViminaConfig = ^TViminaConfig;
 
   TControlTypeInfo = record
     Name: string;
@@ -51,6 +60,14 @@ type
     X, Y, Width, Height: Integer;
     CenterX, CenterY: Integer;
     LabelText: string;
+    Hwnd: HWND;
+  end;
+
+  TWindowInfo = record
+    Hwnd: HWND;
+    Title: string;
+    ClassName: string;
+    ProcessId: DWORD;
   end;
 
 const
@@ -65,10 +82,57 @@ const
   );
 
 function GetDefaultConfig: TViminaConfig;
+function LoadConfig(const FileName: string): TViminaConfig;
+procedure SaveConfig(const FileName: string; const Cfg: TViminaConfig);
 function GetControlTypeInfo(TypeNum: Integer): TControlTypeInfo;
 function IsInteractiveControl(TypeNum: Integer): Boolean;
+function HexToColor(const HexStr: string): TColor;
+function ColorToHex(Color: TColor): string;
+procedure WriteJsonFile(const FileName: string; JSON: TJSONData);
 
 implementation
+
+uses
+  IniFiles;
+
+function HexToColor(const HexStr: string): TColor;
+var
+  Hex: string;
+  Value: LongInt;
+begin
+  Hex := HexStr;
+  if Pos('0x', LowerCase(Hex)) = 1 then
+    Delete(Hex, 1, 2)
+  else if Pos('#', Hex) = 1 then
+    Delete(Hex, 1, 1);
+    
+  try
+    Value := StrToInt('$' + Hex);
+    Result := TColor(Value);
+  except
+    Result := $00DDFF;
+  end;
+end;
+
+function ColorToHex(Color: TColor): string;
+begin
+  Result := '0x' + IntToHex(Color, 6);
+end;
+
+procedure WriteJsonFile(const FileName: string; JSON: TJSONData);
+var
+  FS: TFileStream;
+  JSONStr: string;
+begin
+  JSONStr := JSON.FormatJSON([foSingleLineArray, foSingleLineObject], 2);
+  
+  FS := TFileStream.Create(FileName, fmCreate);
+  try
+    FS.WriteBuffer(JSONStr[1], Length(JSONStr));
+  finally
+    FS.Free;
+  end;
+end;
 
 function GetDefaultConfig: TViminaConfig;
 begin
@@ -95,6 +159,113 @@ begin
   with Result.PerfCfg do
   begin
     ClickDelay := 30;
+  end;
+
+  with Result.ClickModeCfg do
+  begin
+    UseMouseClick := False;
+    BringToFront := True;
+    UseBackendClick := False;
+  end;
+end;
+
+function LoadConfig(const FileName: string): TViminaConfig;
+var
+  JSON: TJSONObject;
+  JSONData: TJSONData;
+  FS: TFileStream;
+  Parser: TJSONParser;
+begin
+  Result := GetDefaultConfig;
+  
+  if not FileExists(FileName) then
+    Exit;
+    
+  try
+    FS := TFileStream.Create(FileName, fmOpenRead or fmShareDenyWrite);
+    try
+      Parser := TJSONParser.Create(FS, [joUTF8]);
+      try
+        JSONData := Parser.Parse;
+        if Assigned(JSONData) and (JSONData.JSONType = jtObject) then
+        begin
+          JSON := TJSONObject(JSONData);
+          
+          if JSON.Find('BackgroundColor_Default') <> nil then
+            Result.LabelCfg.BackgroundColor_Default := HexToColor(JSON.Get('BackgroundColor_Default', '0x00DDFF'));
+          if JSON.Find('BackgroundColor_Match') <> nil then
+            Result.LabelCfg.BackgroundColor_Match := HexToColor(JSON.Get('BackgroundColor_Match', '0x00FF00'));
+          if JSON.Find('BackgroundColor_Prefix') <> nil then
+            Result.LabelCfg.BackgroundColor_Prefix := HexToColor(JSON.Get('BackgroundColor_Prefix', '0x00A5FF'));
+          if JSON.Find('BackgroundColor_Invalid') <> nil then
+            Result.LabelCfg.BackgroundColor_Invalid := HexToColor(JSON.Get('BackgroundColor_Invalid', '0x808080'));
+          if JSON.Find('TextColor') <> nil then
+            Result.LabelCfg.TextColor := HexToColor(JSON.Get('TextColor', '0x000000'));
+            
+          Result.LabelCfg.FontSize := JSON.Get('FontSize', 12);
+          Result.LabelCfg.FontWeight := JSON.Get('FontWeight', 700);
+          Result.LabelCfg.OffsetX := JSON.Get('OffsetX', 0);
+          Result.LabelCfg.OffsetY := JSON.Get('OffsetY', 18);
+          
+          Result.FilterCfg.MinWidth := JSON.Get('MinWidth', 8);
+          Result.FilterCfg.MinHeight := JSON.Get('MinHeight', 8);
+          Result.FilterCfg.MaxDepth := JSON.Get('MaxDepth', 50);
+          
+          Result.PerfCfg.ClickDelay := JSON.Get('ClickDelay', 30);
+          
+          Result.ClickModeCfg.UseMouseClick := JSON.Get('UseMouseClick', False);
+          Result.ClickModeCfg.BringToFront := JSON.Get('BringToFront', True);
+          Result.ClickModeCfg.UseBackendClick := JSON.Get('UseBackendClick', False);
+        end;
+        JSONData.Free;
+      finally
+        Parser.Free;
+      end;
+    finally
+      FS.Free;
+    end;
+  except
+  end;
+end;
+
+procedure SaveConfig(const FileName: string; const Cfg: TViminaConfig);
+var
+  JSON: TJSONObject;
+  JSONStr: string;
+  FS: TFileStream;
+begin
+  JSON := TJSONObject.Create;
+  try
+    JSON.Add('BackgroundColor_Default', ColorToHex(Cfg.LabelCfg.BackgroundColor_Default));
+    JSON.Add('BackgroundColor_Match', ColorToHex(Cfg.LabelCfg.BackgroundColor_Match));
+    JSON.Add('BackgroundColor_Prefix', ColorToHex(Cfg.LabelCfg.BackgroundColor_Prefix));
+    JSON.Add('BackgroundColor_Invalid', ColorToHex(Cfg.LabelCfg.BackgroundColor_Invalid));
+    JSON.Add('TextColor', ColorToHex(Cfg.LabelCfg.TextColor));
+    JSON.Add('FontSize', Cfg.LabelCfg.FontSize);
+    JSON.Add('FontWeight', Cfg.LabelCfg.FontWeight);
+    JSON.Add('OffsetX', Cfg.LabelCfg.OffsetX);
+    JSON.Add('OffsetY', Cfg.LabelCfg.OffsetY);
+    
+    JSON.Add('MinWidth', Cfg.FilterCfg.MinWidth);
+    JSON.Add('MinHeight', Cfg.FilterCfg.MinHeight);
+    JSON.Add('MaxDepth', Cfg.FilterCfg.MaxDepth);
+    
+    JSON.Add('ClickDelay', Cfg.PerfCfg.ClickDelay);
+    
+    JSON.Add('UseMouseClick', Cfg.ClickModeCfg.UseMouseClick);
+    JSON.Add('BringToFront', Cfg.ClickModeCfg.BringToFront);
+    JSON.Add('UseBackendClick', Cfg.ClickModeCfg.UseBackendClick);
+    
+    JSONStr := JSON.FormatJSON([foSingleLineArray, foSingleLineObject], 2);
+  finally
+    JSON.Free;
+  end;
+  
+  FS := TFileStream.Create(FileName, fmCreate);
+  try
+    FS.WriteBuffer(JSONStr[1], Length(JSONStr));
+  finally
+    FS.Free;
   end;
 end;
 

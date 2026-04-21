@@ -70,6 +70,14 @@ object frmMain: TfrmMain
       Caption = '配置(&C)'
       OnClick = miConfigClick
     end
+    object miScriptEditor: TMenuItem
+      Caption = '脚本编辑器(&S)'
+      OnClick = miScriptEditorClick
+    end
+    object miMouseSpy: TMenuItem
+      Caption = '控件探测(&P)'
+      OnClick = miMouseSpyClick
+    end
     object miSep: TMenuItem
       Caption = '-'
     end

@@ -1,6 +1,7 @@
 unit UIAutomation;
 
 {$mode objfpc}{$H+}
+{$codepage UTF8}
 
 interface
 
@@ -18,6 +19,7 @@ type
     function GetInteractiveControls(Hwnd: HWND; var Controls: array of TControlInfo; MaxDepth: Integer = 50): Integer;
     function EnumerateElements(RootElement: OleVariant; var Controls: array of TControlInfo; 
       MaxControls: Integer; CurrentLevel: Integer; MaxLevel: Integer): Integer;
+    function GetControlAtPoint(X, Y: Integer; var Control: TControlInfo): Integer;
   end;
 
 implementation
@@ -177,6 +179,72 @@ begin
       Exit;
       
     Result := EnumerateElements(RootElement, Controls, Length(Controls), 0, MaxDepth);
+  except
+    Result := 0;
+  end;
+end;
+
+function TUIAutomationHelper.GetControlAtPoint(X, Y: Integer; var Control: TControlInfo): Integer;
+var
+  Point: OleVariant;
+  Element: OleVariant;
+  ControlType: Integer;
+  BoundingRect: OleVariant;
+  Name: WideString;
+  TypeInfo: TControlTypeInfo;
+  Left, Top, Width, Height: Integer;
+begin
+  Result := 0;
+  
+  if not FInitialized then
+    Exit;
+    
+  try
+    Point := FAutomation.CreateAndCondition(
+      FAutomation.CreatePropertyCondition(30086, X),
+      FAutomation.CreatePropertyCondition(30087, Y)
+    );
+    
+    Element := FAutomation.ElementFromPoint(FAutomation.CreatePoint(X, Y));
+    
+    if VarIsNull(Element) or VarIsEmpty(Element) then
+      Exit;
+      
+    ControlType := Element.CurrentControlType;
+    
+    if IsInteractiveControl(ControlType) then
+    begin
+      BoundingRect := Element.CurrentBoundingRectangle;
+      
+      Left := Integer(Trunc(Double(BoundingRect.left)));
+      Top := Integer(Trunc(Double(BoundingRect.top)));
+      Width := Integer(Trunc(Double(BoundingRect.right - BoundingRect.left)));
+      Height := Integer(Trunc(Double(BoundingRect.bottom - BoundingRect.top)));
+      
+      TypeInfo := GetControlTypeInfo(ControlType);
+      
+      try
+        Name := Element.CurrentName;
+      except
+        Name := '';
+      end;
+      
+      Control.Name := UTF8Encode(Name);
+      Control.ControlType := TypeInfo.Name;
+      Control.TypeNum := ControlType;
+      Control.TypeDesc := TypeInfo.Desc;
+      Control.ActionHint := TypeInfo.Action;
+      Control.X := Left;
+      Control.Y := Top;
+      Control.Width := Width;
+      Control.Height := Height;
+      Control.CenterX := Left + Width div 2;
+      Control.CenterY := Top + Height div 2;
+      Control.LabelText := '';
+      Control.Hwnd := 0;
+      
+      Result := 1;
+    end;
   except
     Result := 0;
   end;

@@ -1,12 +1,13 @@
 unit HttpServer;
 
 {$mode objfpc}{$H+}
+{$codepage UTF8}
 
 interface
 
 uses
   Classes, SysUtils, fphttpserver, httpdefs, httpprotocol, fpjson, jsonparser,
-  Windows, Config;
+  Windows, Config, VMAEngine;
 
 type
   TClickLabelEvent = procedure(const ALabel: string; RightClick, DoubleClick: Boolean) of object;
@@ -22,6 +23,7 @@ type
     FOnScanRequest: TScanRequestEvent;
     FOnShowMarkers: TShowMarkersEvent;
     FOnHideMarkers: THideMarkersEvent;
+    FVMAEngine: TVMAEngine;
   protected
     procedure HandleRequest(var ARequest: TFPHTTPConnectionRequest;
       var AResponse: TFPHTTPConnectionResponse); override;
@@ -29,6 +31,7 @@ type
       AResponse: TFPHTTPConnectionResponse);
   public
     constructor Create(AOwner: TComponent; const ADataDir, AConfigFile: string); reintroduce;
+    destructor Destroy; override;
     property OnClickLabel: TClickLabelEvent
       read FOnClickLabel write FOnClickLabel;
     property OnScanRequest: TScanRequestEvent
@@ -37,6 +40,7 @@ type
       read FOnShowMarkers write FOnShowMarkers;
     property OnHideMarkers: THideMarkersEvent
       read FOnHideMarkers write FOnHideMarkers;
+    property VMAEngine: TVMAEngine read FVMAEngine;
   end;
 
   function ReadJsonFile(const FileName: string): TJSONData;
@@ -178,6 +182,13 @@ begin
   FConfigFile := AConfigFile;
   Port := 51401;
   Threaded := True;
+  FVMAEngine := TVMAEngine.Create(ADataDir, AConfigFile);
+end;
+
+destructor TViminaHttpServer.Destroy;
+begin
+  FVMAEngine.Free;
+  inherited Destroy;
 end;
 
 procedure TViminaHttpServer.HandleRequest(var ARequest: TFPHTTPConnectionRequest;
@@ -363,6 +374,12 @@ begin
       Endpoints.Add('GET  /api/drag/{x1}/{y1}/{x2}/{y2}  - 拖拽操作');
       Endpoints.Add('POST /api/input                     - 输入文本');
       Endpoints.Add('GET  /api/status                    - 获取状态');
+      Endpoints.Add('POST /api/vma/run                    - 运行VMA脚本');
+      Endpoints.Add('POST /api/vma/runFile                - 运行VMA脚本文件');
+      Endpoints.Add('GET  /api/vma/status                 - 获取VMA状态');
+      Endpoints.Add('POST /api/vma/stop                   - 停止VMA脚本');
+      Endpoints.Add('POST /api/vma/pause                  - 暂停VMA脚本');
+      Endpoints.Add('POST /api/vma/resume                 - 恢复VMA脚本');
       ResultJSON.Add('endpoints', Endpoints);
     end
     else if Path = '/api/scan' then
@@ -818,6 +835,74 @@ begin
       ScreenObj.Add('width', ScreenWidth);
       ScreenObj.Add('height', ScreenHeight);
       ResultJSON.Add('screen', ScreenObj);
+    end
+    else if (Path = '/api/vma/run') and (RequestMethod = 'POST') then
+    begin
+      Body := ARequest.Content;
+      JSON := TJSONObject(GetJSON(Body));
+      try
+        Text := JSON.Get('script', '');
+        if Text = '' then
+        begin
+          ResultJSON.Add('success', False);
+          ResultJSON.Add('error', '缺少 script 参数');
+        end
+        else
+        begin
+          ResultJSON.Free;
+          ResultJSON := FVMAEngine.Run(Text);
+        end;
+      finally
+        JSON.Free;
+      end;
+    end
+    else if (Path = '/api/vma/runFile') and (RequestMethod = 'POST') then
+    begin
+      Body := ARequest.Content;
+      JSON := TJSONObject(GetJSON(Body));
+      try
+        Text := JSON.Get('file', '');
+        if Text = '' then
+        begin
+          ResultJSON.Add('success', False);
+          ResultJSON.Add('error', '缺少 file 参数');
+        end
+        else if not FileExists(Text) then
+        begin
+          ResultJSON.Add('success', False);
+          ResultJSON.Add('error', '文件不存在: ' + Text);
+        end
+        else
+        begin
+          ResultJSON.Free;
+          ResultJSON := FVMAEngine.RunFile(Text);
+        end;
+      finally
+        JSON.Free;
+      end;
+    end
+    else if Path = '/api/vma/status' then
+    begin
+      ResultJSON.Free;
+      ResultJSON := FVMAEngine.GetStatus;
+    end
+    else if (Path = '/api/vma/stop') and (RequestMethod = 'POST') then
+    begin
+      FVMAEngine.Stop;
+      ResultJSON.Add('success', True);
+      ResultJSON.Add('message', '脚本已停止');
+    end
+    else if (Path = '/api/vma/pause') and (RequestMethod = 'POST') then
+    begin
+      FVMAEngine.Pause;
+      ResultJSON.Add('success', True);
+      ResultJSON.Add('message', '脚本已暂停');
+    end
+    else if (Path = '/api/vma/resume') and (RequestMethod = 'POST') then
+    begin
+      FVMAEngine.Resume;
+      ResultJSON.Add('success', True);
+      ResultJSON.Add('message', '脚本已恢复');
     end
     else
     begin

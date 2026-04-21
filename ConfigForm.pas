@@ -1,6 +1,7 @@
 unit ConfigForm;
 
 {$mode objfpc}{$H+}
+{$codepage UTF8}
 
 interface
 

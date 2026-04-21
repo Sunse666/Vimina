@@ -1,6 +1,7 @@
 program Vimina;
 
 {$mode objfpc}{$H+}
+{$codepage UTF8}
 
 uses
   Interfaces,

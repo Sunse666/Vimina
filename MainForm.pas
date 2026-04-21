@@ -1,6 +1,7 @@
 unit MainForm;
 
 {$mode objfpc}{$H+}
+{$codepage UTF8}
 
 interface
 
@@ -19,6 +20,8 @@ type
     PopupMenu1: TPopupMenu;
     miShow: TMenuItem;
     miConfig: TMenuItem;
+    miScriptEditor: TMenuItem;
+    miMouseSpy: TMenuItem;
     miSep: TMenuItem;
     miExit: TMenuItem;
     procedure FormCreate(Sender: TObject);
@@ -26,6 +29,8 @@ type
     procedure FormShow(Sender: TObject);
     procedure miShowClick(Sender: TObject);
     procedure miConfigClick(Sender: TObject);
+    procedure miScriptEditorClick(Sender: TObject);
+    procedure miMouseSpyClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure btnConfigClick(Sender: TObject);
   private
@@ -92,7 +97,7 @@ implementation
 {$R *.lfm}
 
 uses
-  Math, StrUtils;
+  Math, StrUtils, ScriptEditorForm, MouseSpyForm;
 
 function KeyboardHookProc(nCode: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall;
 var
@@ -254,6 +259,11 @@ begin
   FTrayIcon.Visible := True;
   lblApi.Caption := 'API: http://localhost:51401';
   lblApi.Font.Color := clGreen;
+  
+  Visible := True;
+  WindowState := wsNormal;
+  BringToFront;
+  SetForegroundWindow(Handle);
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -287,6 +297,24 @@ end;
 procedure TfrmMain.miConfigClick(Sender: TObject);
 begin
   btnConfigClick(Sender);
+end;
+
+procedure TfrmMain.miScriptEditorClick(Sender: TObject);
+var
+  Editor: TfrmScriptEditor;
+begin
+  Editor := TfrmScriptEditor.Create(Application);
+  Editor.DataDir := FDataDir;
+  Editor.ConfigFile := FConfigFile;
+  Editor.Show;
+end;
+
+procedure TfrmMain.miMouseSpyClick(Sender: TObject);
+var
+  Spy: TfrmMouseSpy;
+begin
+  Spy := TfrmMouseSpy.Create(Application);
+  Spy.Show;
 end;
 
 procedure TfrmMain.miExitClick(Sender: TObject);
