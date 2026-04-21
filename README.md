@@ -18,6 +18,10 @@
 
 <p align="center"> <img src="assets/config.png" alt="Config Screenshot"> </p>
 
+### 脚本编辑器
+
+<p align="center"> <img src="assets/script.png" alt="Script Screenshot"> </p>
+
 
 ## 🚀 功能特性
 
