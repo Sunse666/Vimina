@@ -1,0 +1,266 @@
+site_name: Vimina
+site_url: https://sunse666.github.io/Vimina/
+repo_url: https://github.com/Sunse666/Vimina
+repo_name: Sunse666/Vimina
+edit_uri: https://github.com/Sunse666/Vimina/edit/main/html/docs/
+edit_uri_template: ""
+site_description: Vimina 的官方文档网站
+site_author: Sunse666
+copyright: Copyright &copy; 2024 Sunse666
+remote_branch: gh-pages
+remote_name: origin
+docs_dir: docs/
+site_dir: site
+dev_addr: 127.0.0.1:8080
+use_directory_urls: true
+strict: false
+
+markdown_extensions:
+  ###### Python Markdown 配置（markdown 基础语法）
+
+  - admonition
+  - meta
+  - sane_lists
+  - smarty
+  - wikilinks
+
+  - toc:
+      marker: ""
+      anchorlink: false
+      permalink: ¶
+      permalink_title: ""
+      permalink_leading: false
+      baselevel: 1
+      separator: "-"
+      toc_depth: 4
+      slugify:
+        !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+
+  ###### PyMdown Extensions 配置（markdown 扩展语法）
+
+  - pymdownx.extra
+
+  - pymdownx.blocks.definition
+  - pymdownx.blocks.details
+  - pymdownx.blocks.html
+  - pymdownx.blocks.tab:
+      alternate_style: True
+      combine_header_slug: True
+      slugify:
+        !!python/object/apply:pymdownx.slugs.slugify { kwds: { case: lower } }
+  - pymdownx.blocks.admonition:
+      types:
+        - new
+        - settings
+        - note
+        - abstract
+        - info
+        - tip
+        - success
+        - question
+        - warning
+        - failure
+        - danger
+        - bug
+        - example
+        - quote
+  - pymdownx.blocks.caption:
+      types:
+        - name: figure-caption
+          prefix: "图 {} "
+        - name: table-caption
+          prefix: "表 {} "
+
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.fancylists
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.saneheaders
+  - pymdownx.smartsymbols
+  - pymdownx.tilde
+
+  - pymdownx.arithmatex:
+      generic: true
+
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+  - pymdownx.escapeall:
+      hardbreak: true
+      nbsp: true
+
+  - pymdownx.highlight:
+      use_pygments: true
+      linenums: true
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      default_lang: python
+
+  - pymdownx.magiclink:
+      user: "Sunse666"
+      repo: "Vimina"
+      hide_protocol: true
+      repo_url_shorthand: true
+      repo_url_shortener: true
+      social_url_shorthand: true
+      social_url_shortener: true
+      normalize_issue_symbols: true
+
+  - pymdownx.snippets:
+      url_download: true
+      url_timeout: 10.0
+      url_max_size: 33554432
+
+  - pymdownx.superfences:
+      disable_indented_code_blocks: false
+      preserve_tabs: true
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+        - name: markmap
+          class: language-markmap
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+      separator: "-"
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {}
+
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  language: zh
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.path
+    - navigation.indexes
+    - toc.follow
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - announce.dismiss
+    - navigation.footer
+    - content.action.edit
+    - content.action.view
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+  palette: # 界面整体样式
+    - media: "(prefers-color-scheme)" # 系统主题
+      toggle:
+        icon: material/theme-light-dark
+        name: 系统主题
+    - media: "(prefers-color-scheme: light)" # 亮色主题
+      scheme: default
+      primary: white
+      accent: light blue
+      toggle:
+        icon: material/weather-sunny
+        name: 明亮主题
+    - media: "(prefers-color-scheme: dark)" # 暗色主题
+      scheme: slate
+      primary: black
+      accent: yellow
+      toggle:
+        icon: material/weather-night
+        name: 暗黑主题
+  font: false
+  logo: logo.png
+  favicon: logo.png
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/file-edit
+    view: material/file-eye
+    tag:
+      default: material/tag
+
+extra:
+  alternate:
+    - name: 简体中文
+      link: .
+      lang: zh
+    - name: English
+      link: en/
+      lang: en
+  generator: false
+  status:
+    new: 最近添加
+    deprecated: 已废弃
+  homepage: .
+  tags:
+    _:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/Sunse666/Vimina/
+      name: GitHub
+
+extra_javascript:
+  - https://xiaokang2022.github.io/js/shortcuts.js
+  - https://xiaokang2022.github.io/js/katex.js
+  - https://xiaokang2022.github.io/js/tablesort.js
+  - https://unpkg.com/katex@latest/dist/katex.min.js
+  - https://unpkg.com/katex@latest/dist/contrib/auto-render.min.js
+  - https://unpkg.com/tablesort@latest/dist/tablesort.min.js
+  - https://unpkg.com/tablesort@latest/dist/sorts/tablesort.date.min.js
+  - https://unpkg.com/tablesort@latest/dist/sorts/tablesort.dotsep.min.js
+  - https://unpkg.com/tablesort@latest/dist/sorts/tablesort.filesize.min.js
+  - https://unpkg.com/tablesort@latest/dist/sorts/tablesort.monthname.min.js
+  - https://unpkg.com/tablesort@latest/dist/sorts/tablesort.number.min.js
+  - https://unpkg.com/d3@latest/dist/d3.min.js
+  - https://unpkg.com/markmap-lib@latest/dist/browser/index.iife.js
+  - https://unpkg.com/markmap-view@latest/dist/browser/index.js
+
+extra_css:
+  - https://xiaokang2022.github.io/css/extra.css
+  - stylesheets/extra.css
+  - https://unpkg.com/katex@latest/dist/katex.min.css # 数学表达式
+  - https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css # 图标字体库
+  - https://cdnjs.cloudflare.com/ajax/libs/lxgw-wenkai-screen-webfont/1.7.0/style.min.css # 设置字体（霞鹜文楷）
+
+plugins:
+  - search:
+  - meta:
+  - tags:
+
+nav:
+  - 站点主页:
+      - index.md
+      - 快速开始: getting-started.md
+      - 基本使用: basics.md
+
+  - HTTP API:
+      - api/index.md
+      - 基础操作: api/basic.md
+      - 点击操作: api/click.md
+      - 窗口管理: api/window.md
+      - 鼠标键盘: api/input.md
+      - VMA脚本: api/vma.md
+
+  - VMA脚本:
+      - vma/index.md
+      - 语法参考: vma/syntax.md
+      - 内置函数: vma/functions.md
+      - 脚本示例: vma/examples.md
+
+  - 配置说明: config.md
+
+  - 对比分析: compare.md
