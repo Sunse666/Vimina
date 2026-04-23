@@ -1062,7 +1062,7 @@ Actually for most operations, background clicking (useBackend: true) is sufficie
 
 ### Q: How does it compare to similar software?
 
-[Codex Computer Use](vsCodex-en.md) [AnJian JingLing](compare-en.md)
+[AnJian JingLing](compare-en.md) [Codex Computer Use](vsCodex-en.md) [OpenClaw](vsOpenClaw-en.md)
 
 ---
 <p align="center"> Made with 💚 by Vimina </p>

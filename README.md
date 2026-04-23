@@ -1061,7 +1061,7 @@ curl -X POST http://localhost:51401/api/clickByTitle \
 
 ### Q: 与其他相似功能软件对比相比怎么样？
 
-[Codex Computer Use](vsCodex.md) [按键精灵](compare.md)
+[按键精灵](compare.md) [Codex Computer Use](vsCodex.md) [OpenClaw](vsOpenClaw.md)
 
 ---
 <p align="center"> Made with 💚 by Vimina </p>
