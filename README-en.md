@@ -102,7 +102,10 @@ Vimina has a built-in HTTP server that automatically runs on `http://localhost:5
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api` | API information and help |
-| GET | `/api/scan` | Get scan results |
+| GET | `/api/scan` | Get scan results (interactive controls only) |
+| GET | `/api/scanAll` | Scan all controls (including text, images, etc.) |
+| GET | `/api/scanAllByTitle?title=xxx` | Scan all controls by window title |
+| POST | `/api/scanAllByTitle` | Scan all controls by window title |
 | POST | `/api/show` | Show labels and scan |
 | POST | `/api/hide` | Hide labels |
 | POST | `/api/click` | Click control by label |
@@ -117,8 +120,8 @@ Vimina has a built-in HTTP server that automatically runs on `http://localhost:5
 | GET | `/api/clickAt?x=&y=&useBackend=1` | Click at coordinates (supports background) |
 | POST | `/api/clickAt` | Click at coordinates (supports background) |
 | GET | `/api/windows` | Get all window list |
-| GET | `/api/scanByTitle?title=xxx` | Scan controls by window title |
-| POST | `/api/scanByTitle` | Scan controls by window title |
+| GET | `/api/scanByTitle?title=xxx` | Scan controls by window title (interactive only) |
+| POST | `/api/scanByTitle` | Scan controls by window title (interactive only) |
 | GET | `/api/clickByTitle?title=xxx&x=&y=` | Click control by window title (supports background) |
 | POST | `/api/clickByTitle` | Click control by window title (supports background) |
 | GET | `/api/activate?title=xxx` | Activate window (bring to foreground) |
@@ -142,8 +145,19 @@ Vimina has a built-in HTTP server that automatically runs on `http://localhost:5
 # Trigger scan and show labels
 curl -X POST http://localhost:51401/api/show
 
-# Get scan results
+# Get scan results (interactive controls only)
 curl http://localhost:51401/api/scan
+
+# Scan all controls (including text, images, and other non-interactive elements)
+curl http://localhost:51401/api/scanAll
+
+# Scan all controls by window title
+curl "http://localhost:51401/api/scanAllByTitle?title=Notepad"
+
+# POST method to scan all controls
+curl -X POST http://localhost:51401/api/scanAllByTitle \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Notepad"}'
 ```
 
 Response example:
@@ -152,18 +166,59 @@ Response example:
 {
   "success": true,
   "timestamp": "...",
-  "summary": {
-    "totalControls": 15,
-    "description": "Window 'Notepad' has 15 interactive controls"
+  "window": {
+    "title": "Notepad",
+    "className": "Notepad",
+    "handle": 123456
   },
-  "quickReference": [
-    "DJ: File (MenuItem)",
-    "DK: Edit (MenuItem)",
-    "DL: Save (Button)"
-  ],
-  "controls": [...]
+  "summary": {
+    "totalControls": 45,
+    "byType": {
+      "Text": 20,
+      "Button": 5,
+      "Edit": 3,
+      "Image": 2,
+      "Pane": 15
+    },
+    "description": "Window 'Notepad' has 45 controls (including non-interactive controls)"
+  },
+  "controls": [
+    {
+      "name": "File",
+      "type": "MenuItem",
+      "typeDesc": "Menu Item",
+      "isInteractive": true,
+      "x": 10,
+      "y": 30,
+      "width": 50,
+      "height": 20,
+      "centerX": 35,
+      "centerY": 40,
+      "automationId": "",
+      "className": "MenuItem",
+      "isEnabled": true,
+      "isVisible": true
+    },
+    {
+      "name": "Welcome",
+      "type": "Text",
+      "typeDesc": "Text",
+      "isInteractive": false,
+      "x": 100,
+      "y": 150,
+      "width": 200,
+      "height": 30,
+      "centerX": 200,
+      "centerY": 165
+    }
+  ]
 }
 ```
+
+> [!TIP]
+> - `/api/scan` and `/api/scanByTitle` only return interactive controls (buttons, input fields, etc.)
+> - `/api/scanAll` and `/api/scanAllByTitle` return all controls, including non-interactive elements like text and images
+> - All scan results are saved to the `data/scan_result.json` file
 
 ### Click Controls
 
@@ -364,17 +419,32 @@ Vimina's API is designed to be AI-friendly, with scan results containing rich se
 # Python example: Let AI operate desktop applications
 import requests
 
-# 1. Scan current window (can also manually scan beforehand)
+# Method 1: Scan interactive controls (suitable for operating buttons, input fields, etc.)
 requests.post("http://localhost:51401/api/show")
-
-# 2. Get control information for AI analysis
 result = requests.get("http://localhost:51401/api/scan").json()
-print(result["quickReference"])
-# ['DJ: File (MenuItem)', 'DK: Edit (MenuItem)', ...]
 
-# 3. AI decides and clicks target control (note current foreground window)
+# Method 2: Scan all controls (suitable for AI to understand window content)
+result = requests.get("http://localhost:51401/api/scanAll").json()
+# Or scan by title
+result = requests.get("http://localhost:51401/api/scanAllByTitle?title=Notepad").json()
+
+# AI can get all text, images, and other information in the window
+for ctrl in result["controls"]:
+    print(f"{ctrl['type']}: {ctrl['name']} at ({ctrl['x']}, {ctrl['y']})")
+    if ctrl['isInteractive']:
+        print(f"  -> Interactive control, can be clicked")
+
+# AI decides and clicks target control
 requests.post("http://localhost:51401/api/click", json={"label": "DJ"})
+
+# Or click directly at coordinates
+requests.get("http://localhost:51401/api/click/500/300")
 ```
+
+> [!TIP]
+> - `/api/scanAll` endpoint is designed for AI, can get all elements in the window
+> - Returned control information includes `isInteractive` field, AI can determine which controls can be interacted with
+> - Scan results include text content, AI can understand the meaning and context of the window
 
 ### 📜 VMA Scripts
 
@@ -1062,7 +1132,7 @@ Actually for most operations, background clicking (useBackend: true) is sufficie
 
 ### Q: How does it compare to similar software?
 
-[AnJian JingLing](compare-en.md) [Codex Computer Use](vsCodex-en.md) [OpenClaw](vsOpenClaw-en.md)
+[Codex Computer Use](vsCodex-en.md) [AnJian JingLing](compare-en.md)
 
 ---
 <p align="center"> Made with 💚 by Vimina </p>

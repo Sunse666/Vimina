@@ -101,7 +101,10 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 | 方法 | 端点 | 说明 |
 |------|------|------|
 | GET | `/api` | API 信息与帮助 |
-| GET | `/api/scan` | 获取扫描结果 |
+| GET | `/api/scan` | 获取扫描结果(仅可交互控件) |
+| GET | `/api/scanAll` | 扫描所有控件(包括文本、图片等) |
+| GET | `/api/scanAllByTitle?title=xxx` | 通过窗口标题扫描所有控件 |
+| POST | `/api/scanAllByTitle` | 通过窗口标题扫描所有控件 |
 | POST | `/api/show` | 显示标签并扫描 |
 | POST | `/api/hide` | 隐藏标签 |
 | POST | `/api/click` | 通过标签点击控件 |
@@ -116,8 +119,8 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 | GET | `/api/clickAt?x=&y=&useBackend=1` | 坐标点击(支持后台) |
 | POST | `/api/clickAt` | 坐标点击(支持后台) |
 | GET | `/api/windows` | 获取所有窗口列表 |
-| GET | `/api/scanByTitle?title=xxx` | 通过窗口标题扫描控件 |
-| POST | `/api/scanByTitle` | 通过窗口标题扫描控件 |
+| GET | `/api/scanByTitle?title=xxx` | 通过窗口标题扫描控件(仅可交互) |
+| POST | `/api/scanByTitle` | 通过窗口标题扫描控件(仅可交互) |
 | GET | `/api/clickByTitle?title=xxx&x=&y=` | 通过窗口标题点击控件(支持后台) |
 | POST | `/api/clickByTitle` | 通过窗口标题点击控件(支持后台) |
 | GET | `/api/activate?title=xxx` | 激活窗口(切换到前台) |
@@ -141,8 +144,19 @@ Vimina 内置 HTTP 服务器，启动后自动运行在 `http://localhost:51401`
 # 触发扫描并显示标签
 curl -X POST http://localhost:51401/api/show
 
-# 获取扫描结果
+# 获取扫描结果(仅可交互控件)
 curl http://localhost:51401/api/scan
+
+# 扫描所有控件(包括文本、图片等不可交互元素)
+curl http://localhost:51401/api/scanAll
+
+# 通过窗口标题扫描所有控件
+curl "http://localhost:51401/api/scanAllByTitle?title=记事本"
+
+# POST 方式扫描所有控件
+curl -X POST http://localhost:51401/api/scanAllByTitle \
+  -H "Content-Type: application/json" \
+  -d '{"title": "记事本"}'
 ```
 
 响应示例:
@@ -151,18 +165,59 @@ curl http://localhost:51401/api/scan
 {
   "success": true,
   "timestamp": "...",
-  "summary": {
-    "totalControls": 15,
-    "description": "窗口「记事本」共有 15 个可交互控件"
+  "window": {
+    "title": "记事本",
+    "className": "Notepad",
+    "handle": 123456
   },
-  "quickReference": [
-    "DJ: 文件 (MenuItem)",
-    "DK: 编辑 (MenuItem)",
-    "DL: 保存 (Button)"
-  ],
-  "controls": [...]
+  "summary": {
+    "totalControls": 45,
+    "byType": {
+      "Text": 20,
+      "Button": 5,
+      "Edit": 3,
+      "Image": 2,
+      "Pane": 15
+    },
+    "description": "窗口「记事本」共有 45 个控件（包括不可交互控件）"
+  },
+  "controls": [
+    {
+      "name": "文件",
+      "type": "MenuItem",
+      "typeDesc": "菜单项",
+      "isInteractive": true,
+      "x": 10,
+      "y": 30,
+      "width": 50,
+      "height": 20,
+      "centerX": 35,
+      "centerY": 40,
+      "automationId": "",
+      "className": "MenuItem",
+      "isEnabled": true,
+      "isVisible": true
+    },
+    {
+      "name": "欢迎使用",
+      "type": "Text",
+      "typeDesc": "文本",
+      "isInteractive": false,
+      "x": 100,
+      "y": 150,
+      "width": 200,
+      "height": 30,
+      "centerX": 200,
+      "centerY": 165
+    }
+  ]
 }
 ```
+
+> [!TIP]
+> - `/api/scan` 和 `/api/scanByTitle` 只返回可交互控件（按钮、输入框等）
+> - `/api/scanAll` 和 `/api/scanAllByTitle` 返回所有控件，包括文本、图片等不可交互元素
+> - 所有扫描结果都会保存到 `data/scan_result.json` 文件中
 
 ### 点击控件
 
@@ -363,17 +418,32 @@ Vimina 的 API 设计对 AI 友好，扫描结果包含丰富的语义信息：
 # Python 示例：让 AI 操作桌面应用
 import requests
 
-# 1. 扫描当前窗口(也可事先手动扫描)
+# 方式一：扫描可交互控件（适合操作按钮、输入框等）
 requests.post("http://localhost:51401/api/show")
-
-# 2. 获取控件信息供 AI 分析
 result = requests.get("http://localhost:51401/api/scan").json()
-print(result["quickReference"])
-# ['DJ: 文件 (MenuItem)', 'DK: 编辑 (MenuItem)', ...]
 
-# 3. AI 决策后点击目标控件(注意当前前台窗口)
+# 方式二：扫描所有控件（适合AI理解窗口内容）
+result = requests.get("http://localhost:51401/api/scanAll").json()
+# 或通过标题扫描
+result = requests.get("http://localhost:51401/api/scanAllByTitle?title=记事本").json()
+
+# AI 可以获取窗口中的所有文本、图片等信息
+for ctrl in result["controls"]:
+    print(f"{ctrl['type']}: {ctrl['name']} at ({ctrl['x']}, {ctrl['y']})")
+    if ctrl['isInteractive']:
+        print(f"  -> 可交互控件，可以点击")
+
+# AI 决策后点击目标控件
 requests.post("http://localhost:51401/api/click", json={"label": "DJ"})
+
+# 或直接点击坐标
+requests.get("http://localhost:51401/api/click/500/300")
 ```
+
+> [!TIP]
+> - `/api/scanAll` 接口专为 AI 设计，可以获取窗口中的所有元素
+> - 返回的控件信息包含 `isInteractive` 字段，AI 可以判断哪些控件可以交互
+> - 扫描结果包含文本内容，AI 可以理解窗口的含义和上下文
 
 ### 📜 VMA 脚本
 
@@ -1061,7 +1131,7 @@ curl -X POST http://localhost:51401/api/clickByTitle \
 
 ### Q: 与其他相似功能软件对比相比怎么样？
 
-[按键精灵](compare.md) [Codex Computer Use](vsCodex.md) [OpenClaw](vsOpenClaw.md)
+[Codex Computer Use](vsCodex.md) [按键精灵](compare.md)
 
 ---
 <p align="center"> Made with 💚 by Vimina </p>
