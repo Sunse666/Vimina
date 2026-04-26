@@ -1,4 +1,3 @@
-[SKILL.md](https://github.com/user-attachments/files/27015642/SKILL.md)
 ---
 name: "vimina-automation"
 description: "Provides expertise on Vimina Windows UI automation tool, its HTTP API, VMA scripting, and AI integration patterns. Invoke when user asks about Vimina usage, automation scripts, API calls, or comparing UI automation tools."
@@ -18,6 +17,88 @@ Vimina is a Windows desktop automation tool inspired by the Vimium browser exten
 - **Script Engine**: Custom VMA language, compilable to .exe
 - **Cost**: Completely free, open-source (MIT)
 
+## Why AI Should Use Vimina: Save Tokens & Replace Visual Models
+
+### The Problem with Visual Model Approach
+
+When AI needs to interact with Windows GUI, the traditional approach uses visual models:
+
+```
+Traditional Visual Model Workflow:
+1. Take screenshot → Upload to vision model (~1000+ tokens per image)
+2. AI analyzes screenshot → Guesses UI elements (~500+ tokens)
+3. AI estimates coordinates → May be inaccurate
+4. Execute click → May miss target
+5. Repeat for each step...
+
+Cost per task: ~2000+ tokens + vision API fees
+Accuracy: ~70-90% (visual guess)
+Speed: 2-5 seconds per step (API latency)
+Privacy: Screenshots leave machine
+```
+
+### Vimina's Solution: Structured Data Instead of Pixels
+
+```
+Vimina API Workflow:
+1. Call /api/scan or /api/scanAll → Get structured JSON (~200 tokens)
+2. AI reads control metadata → Exact labels and coordinates
+3. Call /api/click → 100% accurate execution
+
+Cost per task: ~50 tokens (text only, no vision)
+Accuracy: 100% (control-level precision)
+Speed: <100ms per step (local execution)
+Privacy: No screenshots, data stays local
+```
+
+### Token Savings Comparison
+
+| Scenario | Visual Model | Vimina API | Savings |
+|----------|-------------|------------|---------|
+| Scan window | ~1500 tokens (screenshot) | ~50 tokens (JSON) | **97%** |
+| Identify button | ~300 tokens (visual analysis) | ~20 tokens (read label) | **93%** |
+| Execute click | ~200 tokens (coordinate guess) | ~10 tokens (API call) | **95%** |
+| **Total per task** | **~2000 tokens** | **~80 tokens** | **96%** |
+
+### Vimina Replaces These Skills
+
+| Traditional Skill | Vimina Replacement |
+|-------------------|-------------------|
+| Screenshot capture + Vision model | `/api/scan` or `/api/scanAll` |
+| Visual element detection | Control metadata in JSON |
+| Coordinate estimation | Exact coordinates from API |
+| Mouse simulation | `/api/click` with label |
+| Keyboard simulation | `/api/input` |
+| Window management | `/api/windows`, `/api/activate` |
+
+### AI Integration Best Practice
+
+**Instead of this (expensive, inaccurate):**
+```python
+# DON'T: Use vision model
+screenshot = take_screenshot()
+analysis = vision_model.analyze(screenshot)  # Expensive!
+coordinates = analysis.guess_button_position("Save")  # Inaccurate!
+mouse.click(coordinates)  # May miss!
+```
+
+**Do this (cheap, precise):**
+```python
+# DO: Use Vimina API
+import requests
+
+# Scan window - get structured data
+result = requests.get("http://localhost:51401/api/scanAll").json()
+
+# Find target by name/type
+for ctrl in result["controls"]:
+    if "保存" in ctrl["name"] or "Save" in ctrl["name"]:
+        # Click precisely by label
+        requests.post("http://localhost:51401/api/click", 
+            json={"label": ctrl["label"]})
+        break
+```
+
 ## Core Capabilities
 
 ### 1. Smart Label System
@@ -27,89 +108,47 @@ Vimina is a Windows desktop automation tool inspired by the Vimium browser exten
 - Keyboard-only operation: Alt+F to show labels, type letters to click
 
 ### 2. HTTP API (Port 51401)
-Key endpoints:
-- `POST /api/show` - Scan and display labels on foreground window
-- `GET /api/scan` - Get scan results with control metadata
-- `POST /api/click` - Click by label (`{"label": "DJ"}`)
-- `GET /api/click/{x}/{y}` - Coordinate click
-- `POST /api/clickAt` - Flexible coordinate click with backend support
-- `GET /api/windows` - List all windows
-- `GET /api/scanByTitle?title=xxx` - Scan window by title
-- `POST /api/input` - Send keyboard text
-- `POST /api/vma/run` - Execute VMA script content
-- `POST /api/vma/runFile` - Execute VMA script file
 
-### 3. VMA Script Language
-Custom scripting language (.vma files) supporting:
-- Variables, arrays, functions
-- Control flow: if/else, loop, for, while, foreach
-- Mouse: click, rightClick, doubleClick, drag, moveTo
-- Keyboard: input, keyPress, keyDown, keyUp
-- Window: activate, findWindow, closeWindow, minimize/maximize
-- Logic: waitFor, windowExists, windowActive
-- Utility: sleep, log, screenshot, rand
+#### Scanning Endpoints
 
-**Compilation**: VMA scripts can be compiled to standalone .exe files via the script editor or command line.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/show` | POST | Show labels and scan foreground window |
+| `/api/hide` | POST | Hide labels |
+| `/api/scan` | GET | Get scan results (interactive controls only) |
+| `/api/scanAll` | GET | Get all controls (including text, images) |
+| `/api/scanByTitle?title=xxx` | GET/POST | Scan window by title (interactive only) |
+| `/api/scanAllByTitle?title=xxx` | GET/POST | Scan all controls by title |
 
-### 4. Backend Operations
-- Click without moving mouse cursor
-- Operate background windows without bringing to foreground
-- Window title-based scanning and clicking
-- Essential for automation that doesn't interrupt user workflow
+#### Clicking Endpoints
 
-## AI Integration: Replace Visual Models with Vimina
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/click` | POST | Click by label (`{"label": "DJ"}`) |
+| `/api/click/{x}/{y}` | GET | Click at coordinates |
+| `/api/click/{x}/{y}?useBackend=1` | GET | Backend click (no mouse movement) |
+| `/api/clickR/{x}/{y}` | GET | Right-click at coordinates |
+| `/api/dblclick/{x}/{y}` | GET | Double-click at coordinates |
+| `/api/clickAt` | POST | Flexible click with options |
+| `/api/clickByTitle` | POST | Click in window by title |
 
-### Why Use Vimina Instead of Visual Models?
+#### Other Endpoints
 
-When an AI needs to interact with a Windows GUI, there are two approaches:
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/windows` | GET | List all windows |
+| `/api/activate?title=xxx` | GET | Activate window by title |
+| `/api/mouse` | GET | Get mouse position |
+| `/api/move/{x}/{y}` | GET | Move mouse |
+| `/api/drag/{x1}/{y1}/{x2}/{y2}` | GET | Drag operation |
+| `/api/input` | POST | Send keyboard text |
+| `/api/status` | GET | Get service status |
+| `/api/vma/run` | POST | Execute VMA script |
+| `/api/vma/runFile` | POST | Execute VMA script file |
+| `/api/vma/status` | GET | Get script status |
+| `/api/vma/stop` | POST | Stop running script |
 
-**Approach 1: Visual Model (Screenshot-based)**
-- Take screenshot → Upload to AI vision model → AI guesses coordinates → Execute click
-- Problems: Expensive (per-image cost), slow (API latency), inaccurate (pixel-level guessing), privacy risk (screenshots leave machine)
-
-**Approach 2: Vimina API (Control-based) - RECOMMENDED**
-- Call Vimina API → Get structured control data → AI reads exact metadata → Execute precise click
-- Advantages: Free execution, millisecond response, 100% accuracy, no screenshots uploaded, deterministic results
-
-### How AI Should Use Vimina
-
-When the user asks the AI to perform an action on a Windows application, the AI should:
-
-1. **First, check if Vimina is available** (port 51401 is accessible)
-2. **Use Vimina to scan the window** instead of asking for a screenshot
-3. **Read the structured control data** to understand the UI
-4. **Execute precise operations** via Vimina API
-
-### Step-by-Step AI Workflow
-
-```python
-import requests
-
-BASE = "http://localhost:51401"
-
-# Step 1: Ensure Vimina is running
-try:
-    status = requests.get(f"{BASE}/api/status", timeout=2).json()
-    if not status.get("running"):
-        print("Vimina is not running. Please start Vimina.exe first.")
-except:
-    print("Cannot connect to Vimina. Ensure Vimina.exe is running.")
-
-# Step 2: Scan the target window
-# Option A: Scan foreground window
-requests.post(f"{BASE}/api/show")
-
-# Option B: Scan by window title (background window)
-requests.get(f"{BASE}/api/scanByTitle?title=记事本")
-
-# Step 3: Get scan results with full control metadata
-result = requests.get(f"{BASE}/api/scan").json()
-
-# Step 4: AI analyzes the controls data
-# The response contains rich metadata for AI to understand the UI
-```
-
-### Scan Result Format (What AI Receives)
+### 3. Scan Result Format (What AI Receives)
 
 The `/api/scan` endpoint returns structured JSON that replaces visual understanding:
 
@@ -117,139 +156,206 @@ The `/api/scan` endpoint returns structured JSON that replaces visual understand
 {
   "success": true,
   "timestamp": "2026-04-23T10:30:00",
+  "window": {
+    "title": "Notepad",
+    "className": "Notepad",
+    "handle": 123456
+  },
   "summary": {
     "totalControls": 15,
-    "description": "Window「记事本」has 15 interactive controls"
+    "description": "Window 'Notepad' has 15 interactive controls"
   },
-  "quickReference": [
-    "DJ: 文件 (MenuItem)",
-    "DK: 编辑 (MenuItem)",
-    "DL: 保存 (Button)",
-    "DM: 格式 (MenuItem)",
-    "DN: 查看 (MenuItem)",
-    "DO: 帮助 (MenuItem)"
-  ],
   "controls": [
     {
       "label": "DJ",
-      "name": "文件",
+      "name": "File",
       "type": "MenuItem",
+      "typeDesc": "Menu Item",
+      "isInteractive": true,
       "x": 10,
       "y": 5,
       "width": 40,
       "height": 20,
-      "enabled": true,
-      "visible": true
-    },
-    {
-      "label": "DL",
-      "name": "保存",
-      "type": "Button",
-      "x": 200,
-      "y": 100,
-      "width": 80,
-      "height": 30,
-      "enabled": true,
-      "visible": true
+      "centerX": 30,
+      "centerY": 15,
+      "isEnabled": true,
+      "isVisible": true
     }
   ]
 }
 ```
 
+The `/api/scanAll` endpoint includes non-interactive elements (text, images):
+
+```json
+{
+  "success": true,
+  "summary": {
+    "totalControls": 45,
+    "byType": {
+      "Text": 20,
+      "Button": 5,
+      "Edit": 3,
+      "Image": 2,
+      "Pane": 15
+    }
+  },
+  "controls": [...]
+}
+```
+
 **Key fields for AI:**
-- `quickReference`: Human-readable list of all controls with labels, names, and types
 - `controls[].label`: Two-letter code to click this control
-- `controls[].name`: Human-readable name (may be in Chinese or English)
-- `controls[].type`: Control type (Button, Edit, MenuItem, etc.)
+- `controls[].name`: Human-readable name
+- `controls[].type`: Control type (Button, Edit, MenuItem, Text, Image, etc.)
+- `controls[].isInteractive`: Whether the control can be clicked
 - `controls[].x/y/width/height`: Exact pixel coordinates
-- `controls[].enabled`: Whether the control is clickable
-- `controls[].visible`: Whether the control is visible
+- `controls[].centerX/centerY`: Center point for clicking
 
-### AI Decision Process Using Vimina
+### 4. Backend Operations
+- Click without moving mouse cursor
+- Operate background windows without bringing to foreground
+- Window title-based scanning and clicking
+- Essential for automation that doesn't interrupt user workflow
 
-```
-User: "Click the Save button in Notepad"
+## AI Integration Patterns
 
-AI Internal Process:
-1. Call POST /api/show (or /api/scanByTitle?title=记事本)
-2. Call GET /api/scan
-3. Parse quickReference: ["DJ: 文件 (MenuItem)", "DK: 编辑 (MenuItem)", "DL: 保存 (Button)", ...]
-4. Match "Save" → "保存" → label "DL"
-5. Call POST /api/click with {"label": "DL"}
-6. Return success to user
-```
+### Pattern 1: Replace Visual Model for UI Understanding
 
-### Complete API Examples for AI
-
-#### Click by Label (Recommended)
 ```python
+import requests
+
+BASE = "http://localhost:51401"
+
+# Instead of taking screenshot and using vision model
+# Use Vimina to get structured UI data
+
+# Scan all controls (including text, images)
+result = requests.get(f"{BASE}/api/scanAll").json()
+
+# AI can now understand the entire window content
+for ctrl in result["controls"]:
+    print(f"{ctrl['type']}: {ctrl['name']} at ({ctrl['x']}, {ctrl['y']})")
+    if ctrl['isInteractive']:
+        print(f"  -> Can click with label: {ctrl['label']}")
+```
+
+### Pattern 2: Precise Click Execution
+
+```python
+# Find and click a button by name
+def click_button(name_contains):
+    result = requests.get(f"{BASE}/api/scan").json()
+    for ctrl in result["controls"]:
+        if name_contains.lower() in ctrl["name"].lower():
+            requests.post(f"{BASE}/api/click", json={"label": ctrl["label"]})
+            return True
+    return False
+
+# Usage
+click_button("Save")
+click_button("确定")
+click_button("OK")
+```
+
+### Pattern 3: Background Window Operation
+
+```python
+# Operate a window without bringing it to front
+def background_click(window_title, x, y):
+    requests.post(f"{BASE}/api/clickByTitle", json={
+        "title": window_title,
+        "x": x,
+        "y": y,
+        "useBackend": True,
+        "bringToFront": False
+    })
+
+# Click in Notepad while user works in another window
+background_click("Notepad", 200, 150)
+```
+
+### Pattern 4: VMA Script for Complex Automation
+
+```python
+# Generate and execute VMA script
+script = """
+// Open Notepad, type text, save
+key("win+r")
+sleep(500)
+input("notepad")
+key("enter")
+sleep(1000)
+input("Hello from AI!")
+key("ctrl+s")
+sleep(300)
+input("ai_output.txt")
+key("enter")
+log("Task completed")
+"""
+
+requests.post(f"{BASE}/api/vma/run", json={"script": script})
+```
+
+## Complete API Examples
+
+### Click by Label
+```bash
 # Left click
-requests.post("http://localhost:51401/api/click", json={"label": "DL"})
+curl -X POST http://localhost:51401/api/click \
+  -H "Content-Type: application/json" \
+  -d '{"label": "DJ"}'
 
 # Right click
-requests.post("http://localhost:51401/api/click", json={"label": "DL", "right": True})
+curl -X POST http://localhost:51401/api/click \
+  -H "Content-Type: application/json" \
+  -d '{"label": "DJ", "right": true}'
 
 # Double click
-requests.post("http://localhost:51401/api/click", json={"label": "DL", "double": True})
+curl -X POST http://localhost:51401/api/click \
+  -H "Content-Type: application/json" \
+  -d '{"label": "DJ", "double": true}'
 ```
 
-#### Click by Coordinates (Backend Mode)
-```python
-# Backend click (doesn't move mouse, doesn't activate window)
-requests.post("http://localhost:51401/api/clickAt", json={
-    "x": 500,
-    "y": 300,
-    "useBackend": True,
-    "right": False,
-    "double": False
-})
+### Click by Coordinates
+```bash
+# Normal click
+curl http://localhost:51401/api/click/100/200
+
+# Backend click (no mouse movement)
+curl "http://localhost:51401/api/click/100/200?useBackend=1"
 ```
 
-#### Click by Window Title (Background Window)
-```python
-# Click in a background window without bringing it to front
-requests.post("http://localhost:51401/api/clickByTitle", json={
-    "title": "记事本",
-    "x": 100,
-    "y": 200,
-    "useBackend": True,
-    "bringToFront": False
-})
+### Scan Windows
+```bash
+# Scan interactive controls
+curl http://localhost:51401/api/scan
+
+# Scan all controls (including text, images)
+curl http://localhost:51401/api/scanAll
+
+# Scan by window title
+curl "http://localhost:51401/api/scanByTitle?title=Notepad"
+curl "http://localhost:51401/api/scanAllByTitle?title=Notepad"
 ```
 
-#### Input Text
-```python
-# Send text to currently focused control
-requests.post("http://localhost:51401/api/input", json={"text": "Hello World"})
+### Input Text
+```bash
+curl -X POST http://localhost:51401/api/input \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello World"}'
 ```
 
-#### Window Management
-```python
+### Window Management
+```bash
 # Get all windows
-windows = requests.get("http://localhost:51401/api/windows").json()
+curl http://localhost:51401/api/windows
 
 # Activate window
-requests.get("http://localhost:51401/api/activate?title=记事本")
+curl "http://localhost:51401/api/activate?title=Notepad"
 ```
 
-#### Execute VMA Script
-```python
-# Run script directly
-script = """
-click(500, 300)
-sleep(1000)
-input("Automated text")
-log("Done")
-"""
-requests.post("http://localhost:51401/api/vma/run", json={"script": script})
-
-# Run script file
-requests.post("http://localhost:51401/api/vma/runFile", json={
-    "file": "C:\\path\\to\\script.vma"
-})
-```
-
-## VMA Script Complete Reference
+## VMA Script Reference
 
 ### Syntax Overview
 
@@ -259,12 +365,6 @@ var count = 10
 var name = "Vimina"
 var flag = true
 
-// Arrays (1-indexed)
-array items = [1, 2, 3, 4, 5]
-var first = items[1]  // 1
-push(items, 6)
-var len = length(items)
-
 // Control Flow
 if count > 5
     log("Greater than 5")
@@ -272,7 +372,7 @@ else
     log("5 or less")
 end
 
-loop(3)
+loop 3
     click(100, 100)
     sleep(200)
 endloop
@@ -288,119 +388,34 @@ end
 // Functions
 function add(a, b)
     return a + b
-endfunction
+end
 
-var result = add(10, 20)  // 30
+var result = add(10, 20)
 ```
 
-### Mouse Functions
+### Built-in Functions
 
-| Function | Description | Example |
-|----------|-------------|---------|
-| `click(x, y)` | Left click at coordinates | `click(500, 300)` |
-| `click(x, y, useBackend=1)` | Backend left click | `click(500, 300, useBackend=1)` |
-| `rightClick(x, y)` | Right click | `rightClick(600, 400)` |
-| `doubleClick(x, y)` | Double click | `doubleClick(100, 100)` |
-| `drag(x1, y1, x2, y2)` | Drag operation | `drag(100, 100, 500, 500)` |
-| `moveTo(x, y)` | Move mouse | `moveTo(300, 300)` |
+| Category | Functions |
+|----------|-----------|
+| **Mouse** | `click(x,y)`, `clickR(x,y)`, `dblclick(x,y)`, `move(x,y)`, `drag(x1,y1,x2,y2)`, `scroll(delta)` |
+| **Keyboard** | `type(text)`, `key(name)`, `keyDown(name)`, `keyUp(name)` |
+| **Window** | `activateWindow(title)`, `closeWindow(title)`, `minimizeWindow(title)`, `maximizeWindow(title)`, `windowExists(title)` |
+| **Control** | `clickTag(tag)`, `getControlByTag(tag)`, `getControlList()` |
+| **Time** | `sleep(ms)`, `getTimestamp()` |
+| **Utility** | `log(msg)`, `screenshot()`, `random(min,max)` |
+| **Math** | `abs(x)`, `floor(x)`, `ceil(x)`, `round(x)`, `sqrt(x)`, `pow(x,y)` |
 
-### Keyboard Functions
+## Comparison with Visual Model Approach
 
-| Function | Description | Example |
-|----------|-------------|---------|
-| `input(text)` | Type text | `input("Hello World")` |
-| `keyPress(key)` | Press key/combo | `keyPress("Ctrl+A")` |
-| `keyDown(key)` | Hold key | `keyDown("Alt")` |
-| `keyUp(key)` | Release key | `keyUp("Alt")` |
-
-### Window Functions
-
-| Function | Description | Example |
-|----------|-------------|---------|
-| `activate(title)` | Bring window to front | `activate("记事本")` |
-| `findWindow(title)` | Find window handle | `var hwnd = findWindow("记事本")` |
-| `closeWindow(title)` | Close window | `closeWindow("记事本")` |
-| `minimizeWindow(title)` | Minimize window | `minimizeWindow("记事本")` |
-| `maximizeWindow(title)` | Maximize window | `maximizeWindow("记事本")` |
-| `windowExists(title)` | Check existence | `if windowExists("记事本")` |
-| `waitFor(title, timeout=30)` | Wait for window | `waitFor("新窗口", timeout=60)` |
-
-### Scanning Functions
-
-| Function | Description | Example |
-|----------|-------------|---------|
-| `scan()` | Scan foreground window | `scan()` |
-| `scanWindow(title)` | Scan by title | `scanWindow("记事本")` |
-| `clickLabel(label)` | Click by label | `clickLabel("DJ")` |
-| `show()` | Show labels | `show()` |
-| `hide()` | Hide labels | `hide()` |
-
-### Utility Functions
-
-| Function | Description | Example |
-|----------|-------------|---------|
-| `sleep(ms)` | Pause execution | `sleep(1000)` |
-| `log(msg)` | Output log | `log("Done")` |
-| `msg(text)` | Message box | `msg("Alert")` |
-| `screenshot()` | Take screenshot | `screenshot()` |
-| `getMousePos()` | Get mouse position | `var pos = getMousePos()` |
-| `getScreenSize()` | Get screen dimensions | `var size = getScreenSize()` |
-| `rand(min, max)` | Random number | `var r = rand(1, 100)` |
-
-### Math Functions
-
-| Function | Description | Example |
-|----------|-------------|---------|
-| `abs(x)` | Absolute value | `abs(-5)` → 5 |
-| `floor(x)` | Round down | `floor(3.7)` → 3 |
-| `ceil(x)` | Round up | `ceil(3.2)` → 4 |
-| `min(a, b, ...)` | Minimum | `min(1, 5, 3)` → 1 |
-| `max(a, b, ...)` | Maximum | `max(1, 5, 3)` → 5 |
-| `toInt(x)` | Convert to int | `toInt("123")` → 123 |
-| `toString(x)` | Convert to string | `toString(123)` → "123" |
-
-## AI Integration Patterns
-
-### Pattern 1: Direct API Control
-AI calls Vimina HTTP API to perform precise UI operations:
-
-```python
-import requests
-
-BASE = "http://localhost:51401"
-
-# Step 1: Scan current window
-requests.post(f"{BASE}/api/show")
-result = requests.get(f"{BASE}/api/scan").json()
-
-# Step 2: AI analyzes quickReference to find target
-# ["DJ: File (MenuItem)", "DK: Edit (MenuItem)", ...]
-
-# Step 3: AI clicks precise control
-requests.post(f"{BASE}/api/click", json={"label": "DJ"})
-```
-
-### Pattern 2: AI + Vimina Hybrid (Recommended)
-AI understands natural language intent, Vimina executes precisely:
-- **AI responsibility**: Understand user intent, plan steps, choose targets
-- **Vimina responsibility**: Precise control execution (100% deterministic)
-- **Cost**: AI only for understanding (~$0.001 per task), execution is free
-- **Privacy**: No screenshots uploaded, only text metadata exchanged
-
-### Pattern 3: VMA Script Automation
-Write reusable automation scripts:
-
-```vma
-// Example: Open Notepad, type text, save
-activate("记事本")
-sleep(500)
-input("Hello World")
-keyPress("Ctrl+S")
-sleep(300)
-input("document.txt")
-keyPress("Enter")
-log("Task completed")
-```
+| Aspect | Visual Model (Screenshot) | Vimina API |
+|--------|---------------------------|------------|
+| **Token Cost** | ~1500 tokens per screenshot | ~50 tokens per scan |
+| **Accuracy** | 70-90% (visual guess) | 100% (control-level) |
+| **Speed** | 2-5 seconds (API latency) | <100ms (local) |
+| **Privacy** | Screenshots uploaded | No data leaves machine |
+| **Determinism** | Probabilistic | Deterministic |
+| **Backend Click** | No | Yes |
+| **Cost** | Per API call | Free |
 
 ## Comparison with Similar Tools
 
@@ -408,11 +423,8 @@ log("Task completed")
 |------|-------------|---------------|----------|----------------|------|----------|
 | **Vimina** | UIA3 (control-level) | Native | Full REST | Tool Use / API | Free | Windows |
 | OpenClaw | Visual + DOM | Via Skills | Limited | Native (MCP) | Free + API | Multi |
-| UI Automata | UIA3 + CDP | Yes | MCP Server | MCP Native | Free | Windows |
-| AskUI | Visual (pixel) | Yes | Yes | Native | Paid | Multi |
 | Codex Computer Use | Visual (AI) | No | Proprietary | Native | Per-use | Cloud |
-| Bytebot | Visual (container) | Yes | Yes | Native | Free + API | Linux |
-| Ui.Vision | CV/OCR + Selenium | Yes | Limited | Claude API | Free | Multi |
+| AskUI | Visual (pixel) | Yes | Yes | Native | Paid | Multi |
 
 ### Vimina's Unique Advantages
 1. **100% deterministic control-level recognition** (not visual guess)
@@ -420,7 +432,7 @@ log("Task completed")
 3. **True backend clicking** (no mouse movement, no focus steal)
 4. **Compile scripts to .exe** (distributable automation)
 5. **Privacy-safe** (no screenshots leave the machine)
-6. **AI-friendly API** (quickReference gives semantic context to AI)
+6. **Token-efficient** (text data instead of images)
 
 ## Configuration
 
@@ -428,52 +440,46 @@ Config file: `config.json` in program directory
 
 ```json
 {
-    "UseMouseClick": false,
-    "BringToFront": true,
-    "UseFlaUIClick": true,
-    "ClickDelay": 30,
-    "MinWidth": 8,
-    "MinHeight": 8,
-    "MaxDepth": 50,
-    "BackgroundColor_Default": "0x00DDFF",
-    "BackgroundColor_Match": "0x00FF00",
-    "BackgroundColor_Prefix": "0x00A5FF",
-    "BackgroundColor_Invalid": "0x808080",
-    "TextColor": "0x000000",
-    "FontSize": 12,
-    "FontWeight": 700,
-    "OffsetX": 0,
-    "OffsetY": 18
+  "api": {
+    "enabled": true,
+    "port": 51401,
+    "host": "localhost",
+    "cors": true
+  },
+  "labelStyle": {
+    "fontSize": 14,
+    "fontFamily": "Consolas",
+    "backgroundColor": "#4CAF50",
+    "textColor": "#FFFFFF"
+  },
+  "controlFilter": {
+    "minWidth": 10,
+    "minHeight": 10,
+    "ignoreDisabled": true
+  }
 }
 ```
 
-Key settings:
-- `UseMouseClick: false` → Backend click (recommended for automation)
-- `BringToFront: false` → Don't activate window (true background operation)
-- `MaxDepth` → Control tree traversal depth (lower = faster scan)
-
 ## Common Use Cases
 
-1. **Keyboard-only app control** - Eliminate mouse for common actions
-2. **RPA (Robotic Process Automation)** - Automate repetitive desktop tasks
-3. **AI agent tool** - Give AI precise hands on Windows GUI
+1. **AI assistant tool** - Give AI precise hands on Windows GUI with minimal tokens
+2. **Keyboard-only app control** - Eliminate mouse for common actions
+3. **RPA (Robotic Process Automation)** - Automate repetitive desktop tasks
 4. **Testing automation** - Scripted UI testing with deterministic clicks
-5. **Accessibility aid** - Keyboard navigation for mouse-impaired users
+5. **Background automation** - Operate windows without interrupting user
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
+| Cannot connect to API | Ensure Vimina.exe is running on port 51401 |
 | Alt+F no response | Ensure window is focused; some UWP apps lack UIA support |
-| Labels misplaced | Adjust `OffsetX`/`OffsetY` in config.json |
-| Scan too slow | Decrease `MaxDepth`, increase `MinWidth`/`MinHeight` |
-| Control not found | Increase `MaxDepth`; some custom controls lack UIA |
-| Backend click fails | Try `UseMouseClick: true` for that specific control |
+| Control not found | Use `/api/scanAll` to see all elements; some custom controls lack UIA |
+| Backend click fails | Try normal click; some controls require foreground focus |
 | Browser activation fails | Use backend click without bringing to front |
 
 ## Resources
 
 - GitHub: https://github.com/Sunse666/Vimina
 - Documentation: Built-in `html/docs/` (MkDocs format)
-- VMA Spec: `docs/VMA-Specification.md`
 - Comparison docs: `vsCodex.md`, `vsOpenClaw.md`, `compare.md`
