@@ -27,7 +27,7 @@ This document provides a detailed comparison between Vimina and AnJian JingLing 
 
 **Open Source Status:** Open source
 
-**Development Language:** Pascal + FlaUI (.NET)
+**Development Language:** C# + FlaUI (.NET)
 
 ### AnJian JingLing
 
@@ -455,7 +455,7 @@ TracePrint "Clicked " & count & " times"
 ```
 
 **Tech Stack:**
-- Development Language: Pascal
+- Development Language: C#
 - Automation Framework: FlaUI (.NET UIA3)
 - HTTP Service: wsock.tcp.simpleHttpServer
 - Runtime: .NET Framework 4.6.2+
