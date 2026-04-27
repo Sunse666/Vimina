@@ -27,7 +27,7 @@
 
 **开源状态：** 开源
 
-**开发语言：** Pascal + FlaUI (.NET)
+**开发语言：** C# + FlaUI (.NET)
 
 ### 按键精灵
 
@@ -454,7 +454,7 @@ TracePrint "共点击 " & count & " 次"
 ```
 
 **技术栈：**
-- 开发语言：Pascal
+- 开发语言：C#
 - 自动化框架：FlaUI (.NET UIA3)
 - HTTP 服务：wsock.tcp.simpleHttpServer
 - 运行时：.NET Framework 4.6.2+
