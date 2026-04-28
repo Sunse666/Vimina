@@ -248,7 +248,7 @@ Detailed comparison: [Vimina vs Others](https://sunse666.github.io/Vimina-docs/c
 
 ## License
 
-[MIT License](LICENSE)
+[GPL License](LICENSE)
 
 ---
 
