@@ -42,14 +42,28 @@ public partial class MainWindow : Window
 
     private void SetupTrayIcon()
     {
-        var iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.ico");
         System.Drawing.Icon? appIcon = null;
         
+        var iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.ico");
         if (System.IO.File.Exists(iconPath))
         {
             try
             {
                 appIcon = new System.Drawing.Icon(iconPath);
+            }
+            catch { }
+        }
+        
+        if (appIcon == null)
+        {
+            try
+            {
+                var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+                using var stream = assembly.GetManifestResourceStream("logo.ico");
+                if (stream != null)
+                {
+                    appIcon = new System.Drawing.Icon(stream);
+                }
             }
             catch { }
         }

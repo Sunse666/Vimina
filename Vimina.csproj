@@ -47,6 +47,9 @@
     <Content Include="logo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <EmbeddedResource Include="logo.ico">
+      <LogicalName>logo.ico</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>
