@@ -42,9 +42,21 @@ public partial class MainWindow : Window
 
     private void SetupTrayIcon()
     {
+        var iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logo.ico");
+        System.Drawing.Icon? appIcon = null;
+        
+        if (System.IO.File.Exists(iconPath))
+        {
+            try
+            {
+                appIcon = new System.Drawing.Icon(iconPath);
+            }
+            catch { }
+        }
+        
         _trayIcon = new TaskbarIcon
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = appIcon ?? System.Drawing.SystemIcons.Application,
             ToolTipText = "Vimina",
             Visibility = Visibility.Visible
         };
@@ -107,7 +119,6 @@ public partial class MainWindow : Window
     {
         if (!_isMarkerVisible) return;
 
-        // Only process key down events, ignore key up
         if (!e.IsKeyDown) return;
 
         if (e.IsLetter)
@@ -252,7 +263,6 @@ public partial class MainWindow : Window
                     var server = new Core.Api.ApiServer(this);
                     server.Start();
                     
-                    // 等待一下确保服务器真的启动了
                     await Task.Delay(500);
                     
                     Dispatcher.Invoke(() => 
@@ -303,7 +313,6 @@ public partial class MainWindow : Window
 
     private void BtnMinimize_Click(object sender, RoutedEventArgs e)
     {
-        // 最小化到托盘
         Hide();
         _trayIcon?.ShowBalloonTip("Vimina", "程序已最小化到托盘", Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Info);
     }
