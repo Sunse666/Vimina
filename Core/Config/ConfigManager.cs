@@ -5,8 +5,10 @@ namespace Vimina.Core.Config;
 
 public static class ConfigManager
 {
-    private static readonly string ConfigPath = Path.Combine(AppContext.BaseDirectory, "config.json");
-    private static readonly string DataDir = Path.Combine(AppContext.BaseDirectory, "data");
+    private static readonly string AppDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) 
+        ?? AppContext.BaseDirectory;
+    private static readonly string ConfigPath = Path.Combine(AppDirectory, "config.json");
+    private static readonly string DataDir = Path.Combine(AppDirectory, "data");
 
     public static ViminaConfig Current { get; private set; } = new();
 
@@ -44,5 +46,6 @@ public static class ConfigManager
     }
 
     public static string ScanResultPath => Path.Combine(DataDir, "scan_result.json");
+    public static string ScanResultLitePath => Path.Combine(DataDir, "scan_result_lite.json");
     public static string LabelMapPath => Path.Combine(DataDir, "label_map.json");
 }

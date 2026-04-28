@@ -239,23 +239,42 @@ public partial class MainWindow : Window
     {
         try
         {
-            _ = Task.Run(() =>
+            _ = Task.Run(async () =>
             {
                 try
                 {
+                    Dispatcher.Invoke(() => 
+                    {
+                        ApiStatusText.Text = "API: 启动中...";
+                        ApiStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x88, 0x88, 0x88));
+                    });
+                    
                     var server = new Core.Api.ApiServer(this);
                     server.Start();
-                    Dispatcher.Invoke(() => ApiStatusText.Text = $"API: http://localhost:{server.Port}/api");
+                    
+                    // 等待一下确保服务器真的启动了
+                    await Task.Delay(500);
+                    
+                    Dispatcher.Invoke(() => 
+                    {
+                        ApiStatusText.Text = $"API: http://localhost:{server.Port}/api";
+                        ApiStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xD4, 0xFF));
+                    });
                 }
                 catch (Exception ex)
                 {
-                    Dispatcher.Invoke(() => ApiStatusText.Text = $"API: 启动失败 ({ex.Message})");
+                    Dispatcher.Invoke(() => 
+                    {
+                        ApiStatusText.Text = $"API: 启动失败 ({ex.Message})";
+                        ApiStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x6B));
+                    });
                 }
             });
         }
         catch (Exception ex)
         {
             ApiStatusText.Text = $"API: 启动失败 ({ex.Message})";
+            ApiStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x6B));
         }
     }
 
@@ -267,6 +286,26 @@ public partial class MainWindow : Window
     private void BtnScript_Click(object sender, RoutedEventArgs e)
     {
         OpenScriptEditor();
+    }
+
+    private void BtnClose_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void TitleBar_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == System.Windows.Input.MouseButton.Left)
+        {
+            DragMove();
+        }
+    }
+
+    private void BtnMinimize_Click(object sender, RoutedEventArgs e)
+    {
+        // 最小化到托盘
+        Hide();
+        _trayIcon?.ShowBalloonTip("Vimina", "程序已最小化到托盘", Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Info);
     }
 
     private void OpenConfig()

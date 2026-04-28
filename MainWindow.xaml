@@ -5,67 +5,160 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Vimina" 
-        Height="260" Width="400"
+        Height="280" Width="420"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        Background="#1a1a2e"
+        Background="Transparent"
         Foreground="#e0e0e0"
-        FontFamily="Microsoft YaHei UI">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+        FontFamily="Microsoft YaHei UI"
+        WindowStyle="None"
+        AllowsTransparency="True">
+    <Border Background="#0f0f1a" 
+            BorderBrush="#00d4ff" 
+            BorderThickness="1" 
+            CornerRadius="8"
+            Margin="10">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <Border Grid.Row="0" 
+                    Background="#1a1a2e" 
+                    CornerRadius="8,8,0,0"
+                    Padding="15,12"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Vimina" 
+                               FontSize="16" 
+                               FontWeight="Bold" 
+                               Foreground="#00d4ff"
+                               VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" 
+                            Content="−" 
+                            Width="28" 
+                            Height="28"
+                            Background="Transparent"
+                            Foreground="#888888"
+                            BorderThickness="0"
+                            FontSize="18"
+                            Click="BtnMinimize_Click"
+                            Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}"/>
+                    <Button Grid.Column="2" 
+                            Content="✕" 
+                            Width="28" 
+                            Height="28"
+                            Background="Transparent"
+                            Foreground="#888888"
+                            BorderThickness="0"
+                            FontSize="14"
+                            Click="BtnClose_Click"
+                            Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}"/>
+                </Grid>
+            </Border>
 
-        <TextBlock Grid.Row="0" 
-                   Text="Alt+F 显示标记" 
-                   Margin="20,20,20,5"
-                   FontSize="14"
-                   Foreground="#e0e0e0"/>
+            <TextBlock Grid.Row="1" 
+                       Text="Alt+F 显示标记" 
+                       Margin="20,20,20,5"
+                       FontSize="14"
+                       Foreground="#e0e0e0"/>
 
-        <TextBlock Grid.Row="1" 
-                   Text="Esc 清除 | Alt+R 刷新" 
-                   Margin="20,5,20,5"
-                   FontSize="12"
-                   Foreground="#666666"/>
+            <TextBlock Grid.Row="2" 
+                       Text="Esc 清除 | Alt+R 刷新" 
+                       Margin="20,5,20,5"
+                       FontSize="12"
+                       Foreground="#666666"/>
 
-        <TextBlock Grid.Row="2" 
-                   Text="输入标签字母点击对应控件" 
-                   Margin="20,5,20,5"
-                   FontSize="12"
-                   Foreground="#888888"/>
+            <TextBlock Grid.Row="3" 
+                       Text="输入标签字母点击对应控件" 
+                       Margin="20,5,20,5"
+                       FontSize="12"
+                       Foreground="#888888"/>
 
-        <TextBlock Grid.Row="3" 
-                   x:Name="ApiStatusText"
-                   Text="API: 启动中..." 
-                   Margin="20,5,20,5"
-                   FontSize="12"
-                   Foreground="#008800"/>
+            <TextBlock Grid.Row="4" 
+                       x:Name="ApiStatusText"
+                       Text="API: 初始化..." 
+                       Margin="20,5,20,5"
+                       FontSize="12"
+                       Foreground="#888888"/>
 
-        <StackPanel Grid.Row="4" 
-                    Orientation="Horizontal" 
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Bottom"
-                    Margin="0,0,0,20">
-            <Button x:Name="BtnConfig"
-                    Content="配置"
-                    Width="80" Height="32"
-                    Margin="5"
-                    Background="#2a2a4a"
-                    Foreground="#e0e0e0"
-                    BorderBrush="#3a3a5c"
-                    Click="BtnConfig_Click"/>
-            <Button x:Name="BtnScript"
-                    Content="脚本"
-                    Width="60" Height="32"
-                    Margin="5"
-                    Background="#2a2a4a"
-                    Foreground="#e0e0e0"
-                    BorderBrush="#3a3a5c"
-                    Click="BtnScript_Click"/>
-        </StackPanel>
-    </Grid>
+            <StackPanel Grid.Row="5" 
+                        Orientation="Horizontal" 
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,20">
+                <Button x:Name="BtnConfig"
+                        Content="配置"
+                        Width="90" Height="36"
+                        Margin="5"
+                        Background="#1a1a2e"
+                        Foreground="#e0e0e0"
+                        BorderBrush="#00d4ff"
+                        BorderThickness="1"
+                        Click="BtnConfig_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" 
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#2a2a4a"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button x:Name="BtnScript"
+                        Content="脚本"
+                        Width="90" Height="36"
+                        Margin="5"
+                        Background="#1a1a2e"
+                        Foreground="#e0e0e0"
+                        BorderBrush="#00d4ff"
+                        BorderThickness="1"
+                        Click="BtnScript_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" 
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#2a2a4a"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
 </Window>

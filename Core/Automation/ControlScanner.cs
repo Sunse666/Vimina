@@ -14,7 +14,6 @@ public class ControlScanner : IDisposable
 {
     private UIA3Automation? _automation;
 
-    // Win32 API to get actual screen metrics (in pixels, not DIP)
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int nIndex);
 
@@ -34,8 +33,6 @@ public class ControlScanner : IDisposable
         if (window == null) return new List<ControlInfo>();
 
         var controls = new List<ControlInfo>();
-        // Use GetSystemMetrics to get actual pixel dimensions, not WPF DIP values
-        // This ensures proper boundary checking with FlaUI's BoundingRectangle (which returns pixels)
         var screenW = GetSystemMetrics(SM_CXVIRTUALSCREEN);
         var screenH = GetSystemMetrics(SM_CYVIRTUALSCREEN);
         var virtualScreenX = GetSystemMetrics(SM_XVIRTUALSCREEN);
@@ -45,8 +42,14 @@ public class ControlScanner : IDisposable
         System.Diagnostics.Debug.WriteLine($"[FlaUI] WPF VirtualScreen: {SystemParameters.VirtualScreenWidth}x{SystemParameters.VirtualScreenHeight}");
 
         EnumerateControls(window, 0, controls, screenW, screenH, virtualScreenX, virtualScreenY, true);
-        // Use 1px grid to minimize deduplication and show more controls
         var deduplicated = DeduplicateByGrid(controls, 1);
+        
+        LabelGenerator.Reset();
+        foreach (var ctrl in deduplicated)
+        {
+            ctrl.Label = LabelGenerator.Next();
+        }
+        
         System.Diagnostics.Debug.WriteLine($"[FlaUI] ScanInteractiveControls: Found {controls.Count} controls, after deduplication: {deduplicated.Count}");
         return deduplicated;
     }
@@ -68,7 +71,15 @@ public class ControlScanner : IDisposable
 
         EnumerateControls(window, 0, controls, screenW, screenH, virtualScreenX, virtualScreenY, false);
         // Use 1px grid to minimize deduplication and show more controls
-        return DeduplicateByGrid(controls, 1);
+        var deduplicated = DeduplicateByGrid(controls, 1);
+        
+        LabelGenerator.Reset();
+        foreach (var ctrl in deduplicated)
+        {
+            ctrl.Label = LabelGenerator.Next();
+        }
+        
+        return deduplicated;
     }
 
     private void EnumerateControls(AutomationElement element, int level, List<ControlInfo> controls, int screenW, int screenH, int screenX, int screenY, bool interactiveOnly)
@@ -123,9 +134,11 @@ public class ControlScanner : IDisposable
                     var typeInfo = ControlTypeInfo.AllTypes.GetValueOrDefault(ctrlTypeNum, ControlTypeInfo.AllTypes[0]);
                     var interactiveTypeInfo = ControlTypeInfo.InteractiveTypes.GetValueOrDefault(ctrlTypeNum);
 
+                    var controlText = GetControlText(child);
+
                     var info = new ControlInfo
                     {
-                        Name = child.Name ?? "",
+                        Name = controlText,
                         Type = typeInfo.Name,
                         TypeNum = ctrlTypeNum,
                         TypeDesc = typeInfo.Description,
@@ -151,6 +164,51 @@ public class ControlScanner : IDisposable
             }
         }
         catch { }
+    }
+
+    private static string GetControlText(AutomationElement element)
+    {
+        try
+        {
+            var name = element.Name;
+            if (!string.IsNullOrEmpty(name))
+                return name;
+        }
+        catch { }
+
+        try
+        {
+            var legacyName = element.Patterns.LegacyIAccessible.Pattern.Name.ValueOrDefault;
+            if (!string.IsNullOrEmpty(legacyName))
+                return legacyName;
+        }
+        catch { }
+
+        try
+        {
+            var value = element.Patterns.Value.Pattern.Value.ValueOrDefault;
+            if (!string.IsNullOrEmpty(value))
+                return value;
+        }
+        catch { }
+
+        try
+        {
+            var text = element.Patterns.Text.Pattern.DocumentRange.GetText(-1);
+            if (!string.IsNullOrEmpty(text))
+                return text;
+        }
+        catch { }
+
+        try
+        {
+            var autoId = element.AutomationId;
+            if (!string.IsNullOrEmpty(autoId))
+                return autoId;
+        }
+        catch { }
+
+        return "";
     }
 
     private static List<ControlInfo> DeduplicateByGrid(List<ControlInfo> controls, int gridSize)
@@ -219,6 +277,33 @@ public class ControlScanner : IDisposable
             QuickReference = quickRef,
             ControlGroups = grouped.Values.ToList(),
             Controls = controls
+        };
+    }
+
+    public ScanResultLite BuildScanResultLite(List<ControlInfo> controls, Helpers.WindowInfo windowInfo)
+    {
+        var controlStrings = controls.Select(c =>
+        {
+            var name = string.IsNullOrEmpty(c.Name) ? c.TypeDesc : c.Name;
+            return $"{c.Label}: {name} ({c.Type}) [{c.CenterX}, {c.CenterY}]";
+        }).ToList();
+
+        return new ScanResultLite
+        {
+            Success = true,
+            Timestamp = DateTime.Now.ToString("O"),
+            Window = new WindowInfoLite
+            {
+                Handle = windowInfo.Hwnd.ToInt64(),
+                Title = windowInfo.Title,
+                ClassName = windowInfo.ClassName
+            },
+            Summary = new ScanSummaryLite
+            {
+                TotalControls = controls.Count,
+                Description = $"窗口「{windowInfo.Title}」共有 {controls.Count} 个可交互控件"
+            },
+            Controls = controlStrings
         };
     }
 

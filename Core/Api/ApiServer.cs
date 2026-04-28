@@ -8,7 +8,6 @@ using Vimina.Core.Config;
 using Vimina.Core.Helpers;
 using Vimina.Core.Scripting;
 
-// For File operations
 using File = System.IO.File;
 
 namespace Vimina.Core.Api;
@@ -40,6 +39,7 @@ public class ApiServer
             context.Response.Headers.Append("Access-Control-Allow-Origin", "*");
             context.Response.Headers.Append("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
             context.Response.Headers.Append("Access-Control-Allow-Headers", "Content-Type");
+            context.Response.Headers.Append("Content-Type", "application/json; charset=utf-8");
             if (context.Request.Method == "OPTIONS")
             {
                 context.Response.StatusCode = 200;
@@ -49,11 +49,25 @@ public class ApiServer
         });
 
         MapEndpoints(app);
-        app.Run();
+        
+        _ = app.RunAsync();
     }
 
     private void MapEndpoints(WebApplication app)
     {
+        static bool? ParseBoolParam(IQueryCollection query, string key)
+        {
+            if (!query.ContainsKey(key)) return null;
+            var value = query[key].ToString();
+            if (string.IsNullOrEmpty(value)) return null;
+            
+            return value.ToLowerInvariant() switch
+            {
+                "1" or "true" or "yes" => true,
+                "0" or "false" or "no" => false,
+                _ => bool.TryParse(value, out var b) ? b : null
+            };
+        }
         app.MapGet("/api", () => Results.Json(new
         {
             name = "Vimina API",
@@ -168,7 +182,6 @@ public class ApiServer
             return Results.Json(result);
         });
 
-        // Mouse down/up for drag operations
         app.MapGet("/api/mousedown/{button}/{x}/{y}", (string button, int x, int y) =>
         {
             MouseHelper.MoveTo(x, y);
@@ -197,7 +210,6 @@ public class ApiServer
             return Results.Json(new { success = true, action = "mouseup", button, x, y });
         });
 
-        // Keyboard endpoints
         app.MapPost("/api/keypress", async (HttpContext context) =>
         {
             var body = await JsonSerializer.DeserializeAsync<KeyRequest>(context.Request.Body);
@@ -229,9 +241,21 @@ public class ApiServer
         {
             var hwnd = WindowHelper.FindWindowByTitle(title);
             if (hwnd == IntPtr.Zero) return Results.Json(new { error = $"未找到窗口: {title}" });
-            WindowHelper.SetForegroundWindow(hwnd);
-            WindowHelper.ShowWindow(hwnd, WindowHelper.SW_RESTORE);
-            return Results.Json(new { success = true, title });
+            
+            var result = WindowHelper.ForceForegroundWindow(hwnd);
+            return Results.Json(new { success = result, title, hwnd = hwnd.ToInt64() });
+        });
+
+        app.MapPost("/api/activate", async (HttpContext context) =>
+        {
+            var body = await JsonSerializer.DeserializeAsync<ActivateRequest>(context.Request.Body);
+            if (body?.Title == null) return Results.BadRequest(new { error = "缺少 title 参数" });
+            
+            var hwnd = WindowHelper.FindWindowByTitle(body.Title);
+            if (hwnd == IntPtr.Zero) return Results.Json(new { error = $"未找到窗口: {body.Title}" });
+            
+            var result = WindowHelper.ForceForegroundWindow(hwnd);
+            return Results.Json(new { success = result, title = body.Title, hwnd = hwnd.ToInt64() });
         });
 
         app.MapPost("/api/input", async (HttpContext context) =>
@@ -299,7 +323,6 @@ public class ApiServer
             return result != null ? Results.Json(result) : Results.Json(new { error = "无标签映射" });
         });
 
-        // 按标题扫描可交互控件
         app.MapGet("/api/scanByTitle", (string title) =>
         {
             var hwnd = WindowHelper.FindWindowByTitle(title);
@@ -311,6 +334,13 @@ public class ApiServer
                 WindowHelper.GetWindowTitle(hwnd),
                 WindowHelper.GetWindowClass(hwnd), 0);
             var result = scanner.BuildScanResult(controls, windowInfo);
+            var resultLite = scanner.BuildScanResultLite(controls, windowInfo);
+            
+            var labelMap = BuildLabelMap(controls);
+            JsonFileHelper.Save(ConfigManager.ScanResultPath, result);
+            JsonFileHelper.Save(ConfigManager.ScanResultLitePath, resultLite);
+            JsonFileHelper.Save(ConfigManager.LabelMapPath, labelMap);
+            
             return Results.Json(result);
         });
 
@@ -328,10 +358,16 @@ public class ApiServer
                 WindowHelper.GetWindowTitle(hwnd),
                 WindowHelper.GetWindowClass(hwnd), 0);
             var result = scanner.BuildScanResult(controls, windowInfo);
+            var resultLite = scanner.BuildScanResultLite(controls, windowInfo);
+            
+            var labelMap = BuildLabelMap(controls);
+            JsonFileHelper.Save(ConfigManager.ScanResultPath, result);
+            JsonFileHelper.Save(ConfigManager.ScanResultLitePath, resultLite);
+            JsonFileHelper.Save(ConfigManager.LabelMapPath, labelMap);
+            
             return Results.Json(result);
         });
 
-        // 按标题扫描所有控件
         app.MapGet("/api/scanAllByTitle", (string title) =>
         {
             var hwnd = WindowHelper.FindWindowByTitle(title);
@@ -343,6 +379,13 @@ public class ApiServer
                 WindowHelper.GetWindowTitle(hwnd),
                 WindowHelper.GetWindowClass(hwnd), 0);
             var result = scanner.BuildScanResult(controls, windowInfo);
+            var resultLite = scanner.BuildScanResultLite(controls, windowInfo);
+            
+            var labelMap = BuildLabelMap(controls);
+            JsonFileHelper.Save(ConfigManager.ScanResultPath, result);
+            JsonFileHelper.Save(ConfigManager.ScanResultLitePath, resultLite);
+            JsonFileHelper.Save(ConfigManager.LabelMapPath, labelMap);
+            
             return Results.Json(result);
         });
 
@@ -360,10 +403,16 @@ public class ApiServer
                 WindowHelper.GetWindowTitle(hwnd),
                 WindowHelper.GetWindowClass(hwnd), 0);
             var result = scanner.BuildScanResult(controls, windowInfo);
+            var resultLite = scanner.BuildScanResultLite(controls, windowInfo);
+            
+            var labelMap = BuildLabelMap(controls);
+            JsonFileHelper.Save(ConfigManager.ScanResultPath, result);
+            JsonFileHelper.Save(ConfigManager.ScanResultLitePath, resultLite);
+            JsonFileHelper.Save(ConfigManager.LabelMapPath, labelMap);
+            
             return Results.Json(result);
         });
 
-        // 坐标点击 (支持后台模式)
         app.MapGet("/api/clickAt", (int x, int y, bool? right, bool? @double, bool? useBackend) =>
         {
             using var engine = new ClickEngine();
@@ -381,21 +430,38 @@ public class ApiServer
             return Results.Json(result);
         });
 
-        // 按窗口标题点击
-        app.MapGet("/api/clickByTitle", (string title, int x, int y, bool? right, bool? @double, bool? useBackend, bool? bringToFront) =>
+        app.MapGet("/api/clickByTitle", (HttpContext context) =>
         {
+            var query = context.Request.Query;
+            var title = query["title"].ToString();
+            if (string.IsNullOrEmpty(title)) 
+                return Results.BadRequest(new { error = "缺少 title 参数" });
+            
+            if (!int.TryParse(query["x"], out var x))
+                return Results.BadRequest(new { error = "缺少或无效的 x 参数" });
+            
+            if (!int.TryParse(query["y"], out var y))
+                return Results.BadRequest(new { error = "缺少或无效的 y 参数" });
+
+            var right = ParseBoolParam(query, "right") ?? false;
+            var doubleClick = ParseBoolParam(query, "double") ?? ParseBoolParam(query, "dbl") ?? false;
+            var useBackend = ParseBoolParam(query, "useBackend") ?? ParseBoolParam(query, "usebackend") ?? ParseBoolParam(query, "backend");
+            var bringToFront = ParseBoolParam(query, "bringToFront") ?? ParseBoolParam(query, "bringtofront") ?? ParseBoolParam(query, "bringfront");
+            var useMouse = ParseBoolParam(query, "useMouse") ?? ParseBoolParam(query, "usemouse") ?? false;
+
             var hwnd = WindowHelper.FindWindowByTitle(title);
             if (hwnd == IntPtr.Zero) return Results.Json(new { error = $"未找到窗口: {title}" });
 
             var bringFront = bringToFront ?? (useBackend == true ? false : true);
             if (bringFront)
             {
-                WindowHelper.SetForegroundWindow(hwnd);
-                Thread.Sleep(100);
+                WindowHelper.ForceForegroundWindow(hwnd);
+                Thread.Sleep(200);
             }
 
             using var engine = new ClickEngine();
-            var result = engine.ClickAt(x, y, right ?? false, @double ?? false, targetHwnd: hwnd, useFlaUI: useBackend, bringToFront: bringFront);
+            var useFlaUI = useMouse ? false : useBackend;
+            var result = engine.ClickAt(x, y, right, doubleClick, targetHwnd: hwnd, useFlaUI: useFlaUI, bringToFront: bringFront);
             return Results.Json(result);
         });
 
@@ -410,8 +476,8 @@ public class ApiServer
             var bringFront = body.BringToFront ?? (body.UseBackend == true ? false : true);
             if (bringFront)
             {
-                WindowHelper.SetForegroundWindow(hwnd);
-                Thread.Sleep(100);
+                WindowHelper.ForceForegroundWindow(hwnd);
+                Thread.Sleep(200);
             }
 
             using var engine = new ClickEngine();
@@ -419,7 +485,6 @@ public class ApiServer
             return Results.Json(result);
         });
 
-        // VMA 脚本相关端点
         app.MapPost("/api/vma/run", async (HttpContext context) =>
         {
             var body = await JsonSerializer.DeserializeAsync<VmaScriptRequest>(context.Request.Body);
@@ -509,6 +574,23 @@ public class ApiServer
             return Results.Json(new { log = _vmaEngine.Log });
         });
     }
+
+    private static LabelMap BuildLabelMap(List<ControlInfo> controls)
+    {
+        var labelMap = new LabelMap();
+        foreach (var ctrl in controls)
+        {
+            if (!string.IsNullOrEmpty(ctrl.Label))
+            {
+                labelMap[ctrl.Label] = new LabelPosition 
+                { 
+                    CenterX = ctrl.CenterX, 
+                    CenterY = ctrl.CenterY 
+                };
+            }
+        }
+        return labelMap;
+    }
 }
 
 public class ClickRequest
@@ -561,4 +643,9 @@ public class VmaFileRequest
 public class KeyRequest
 {
     public string Key { get; set; } = "";
+}
+
+public class ActivateRequest
+{
+    public string Title { get; set; } = "";
 }

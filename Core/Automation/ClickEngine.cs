@@ -18,8 +18,8 @@ public class ClickEngine : IDisposable
 
         if (targetHwnd.HasValue && bringFront)
         {
-            WindowHelper.SetForegroundWindow(targetHwnd.Value);
-            Thread.Sleep(100);
+            WindowHelper.ForceForegroundWindow(targetHwnd.Value);
+            Thread.Sleep(200);
         }
 
         if (useFlaUIClick && !middleClick)
@@ -62,7 +62,7 @@ public class ClickEngine : IDisposable
                 var nativeHandle = element.Properties.NativeWindowHandle.ValueOrDefault;
                 if (nativeHandle != IntPtr.Zero)
                 {
-                    WindowHelper.SetForegroundWindow(nativeHandle);
+                    WindowHelper.ForceForegroundWindow(nativeHandle);
                     success = true;
                 }
             }

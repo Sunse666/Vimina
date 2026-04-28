@@ -181,14 +181,8 @@ public class VmaEngine
                     };
                 }
 
-                if (result.IsLoopEnd && result.ShouldContinue)
-                {
-                    continue;
-                }
-
                 if (result.IsReturn)
                 {
-                    // Handle return - exit current function or script
                     break;
                 }
 
@@ -890,6 +884,20 @@ public class VmaEngine
             var stepVal = match.Groups[4].Success ? Convert.ToInt32(EvaluateExpression(match.Groups[4].Value.Trim()) ?? 1) : 1;
 
             _variables[varName] = startVal;
+            
+            bool shouldSkip = stepVal > 0 ? startVal > endVal : startVal < endVal;
+            if (shouldSkip)
+            {
+                var depth = 1;
+                while (_lineIndex < _lines.Length - 1 && depth > 0)
+                {
+                    _lineIndex++;
+                    var nextLine = _lines[_lineIndex].ToLowerInvariant().Trim();
+                    if (nextLine.StartsWith("for ")) depth++;
+                    else if (nextLine == "endloop" || nextLine == "next") depth--;
+                }
+                return VmaExecuteResult.Ok();
+            }
             
             _loopStack.Push(new LoopContext
             {
@@ -2313,6 +2321,7 @@ public class VmaEngine
                     return VmaExecuteResult.Ok();
                 }
 
+            case "rand":
             case "random":
                 {
                     var min = Convert.ToInt32(GetArg("min", 0, 0));
@@ -2481,13 +2490,27 @@ public class VmaEngine
                     return VmaExecuteResult.Fail($"Window not found: {title}");
                 }
 
+            case "scan":
             case "scanwindow":
                 {
                     var title = GetArg("title", 0, "")?.ToString() ?? "";
-                    var hwnd = FindWindowByTitle(title);
-                    if (hwnd == IntPtr.Zero)
+                    
+                    IntPtr hwnd;
+                    if (string.IsNullOrEmpty(title))
                     {
-                        return VmaExecuteResult.Fail($"Window not found: {title}");
+                        hwnd = GetForegroundWindow();
+                        if (hwnd == IntPtr.Zero)
+                        {
+                            return VmaExecuteResult.Fail("No active window found");
+                        }
+                    }
+                    else
+                    {
+                        hwnd = FindWindowByTitle(title);
+                        if (hwnd == IntPtr.Zero)
+                        {
+                            return VmaExecuteResult.Fail($"Window not found: {title}");
+                        }
                     }
 
                     _scanner ??= new ControlScanner();
@@ -2558,6 +2581,58 @@ public class VmaEngine
                     }
                     return VmaExecuteResult.Ok();
                 }
+
+            case "input":
+                {
+                    var text = GetArg("text", 0, "")?.ToString() ?? "";
+                    foreach (var ch in text)
+                    {
+                        SendKeys.SendWait(ch.ToString());
+                        await Task.Delay(10);
+                    }
+                    return VmaExecuteResult.Ok();
+                }
+
+            case "show":
+                {
+                    if (_scannedControls != null)
+                    {
+                        foreach (var kvp in _scannedControls)
+                        {
+                            _log.Add($"Label {kvp.Key}: {kvp.Value.Name} at ({kvp.Value.X}, {kvp.Value.Y})");
+                        }
+                    }
+                    return VmaExecuteResult.Ok();
+                }
+
+            case "hide":
+                return VmaExecuteResult.Ok();
+
+            case "getscreensize":
+                {
+                    var bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+                    _variables["_"] = new Dictionary<string, object?>
+                    {
+                        ["width"] = bounds.Width,
+                        ["height"] = bounds.Height
+                    };
+                    return VmaExecuteResult.Ok();
+                }
+
+            case "msg":
+                {
+                    var msg = GetArg("message", 0, "")?.ToString() ?? "";
+                    MessageBox.Show(msg, "VMA Script", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return VmaExecuteResult.Ok();
+                }
+
+            case "elseif":
+            case "else":
+            case "end":
+            case "endfunction":
+            case "endwhile":
+            case "label":
+                return VmaExecuteResult.Ok();
 
             default:
                 return VmaExecuteResult.Fail($"Unknown function: {funcName}");

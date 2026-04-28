@@ -123,8 +123,5 @@ public static class KeyboardHelper
 
     private static void SendUnicode(char ch)
     {
-        // For characters not mapped by VkKeyScan, use SendInput with KEYEVENTF_UNICODE
-        // Simplified: just try to send via keybd_event with Alt+numpad
-        // In production, use SendInput with INPUT structure
     }
 }

@@ -14,6 +14,32 @@ public static class WindowHelper
     [DllImport("user32.dll")]
     public static extern IntPtr GetForegroundWindow();
 
+    [DllImport("user32.dll")]
+    public static extern bool AllowSetForegroundWindow(uint dwProcessId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    public static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+    public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+    public static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+    public static readonly IntPtr HWND_TOP = new IntPtr(0);
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOMOVE = 0x0002;
+    public const uint SWP_SHOWWINDOW = 0x0040;
+    public const uint SWP_FRAMECHANGED = 0x0020;
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
@@ -34,9 +60,6 @@ public static class WindowHelper
 
     [DllImport("user32.dll")]
     public static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -87,17 +110,104 @@ public static class WindowHelper
     public static IntPtr FindWindowByTitle(string title)
     {
         IntPtr result = IntPtr.Zero;
+        var searchTitle = title.Trim();
+        
         EnumWindows((hwnd, _) =>
         {
+            if (!IsWindowVisible(hwnd)) return true;
+            
             var wt = GetWindowTitle(hwnd);
-            if (wt.Contains(title, StringComparison.OrdinalIgnoreCase) ||
-                title.Contains(wt, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(wt)) return true;
+            
+            if (wt.Equals(searchTitle, StringComparison.OrdinalIgnoreCase))
             {
                 result = hwnd;
                 return false;
             }
+            
+            if (wt.Contains(searchTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                result = hwnd;
+                return false;
+            }
+            
             return true;
         }, IntPtr.Zero);
+        
+        return result;
+    }
+    
+    public static List<WindowInfo> FindWindowsByTitle(string title)
+    {
+        var list = new List<WindowInfo>();
+        var searchTitle = title.Trim();
+        
+        EnumWindows((hwnd, _) =>
+        {
+            if (!IsWindowVisible(hwnd)) return true;
+            
+            var wt = GetWindowTitle(hwnd);
+            if (string.IsNullOrEmpty(wt)) return true;
+            
+            if (wt.Equals(searchTitle, StringComparison.OrdinalIgnoreCase) ||
+                wt.Contains(searchTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                GetWindowThreadProcessId(hwnd, out var pid);
+                list.Add(new WindowInfo(hwnd, wt, GetWindowClass(hwnd), pid));
+            }
+            
+            return true;
+        }, IntPtr.Zero);
+        
+        return list;
+    }
+
+    public static bool ForceForegroundWindow(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return false;
+        if (!IsWindowVisible(hWnd)) return false;
+
+        if (IsIconic(hWnd))
+        {
+            ShowWindow(hWnd, SW_RESTORE);
+        }
+
+        var foregroundWindow = GetForegroundWindow();
+        if (foregroundWindow == hWnd)
+        {
+            return true;
+        }
+
+        uint foregroundThreadId = GetWindowThreadProcessId(foregroundWindow, out _);
+        uint targetThreadId = GetWindowThreadProcessId(hWnd, out _);
+        uint currentThreadId = GetCurrentThreadId();
+
+        if (foregroundThreadId != currentThreadId)
+        {
+            AttachThreadInput(foregroundThreadId, currentThreadId, true);
+        }
+
+        bool result = false;
+        
+        result = SetForegroundWindow(hWnd);
+        
+        if (!result)
+        {
+            SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            result = SetForegroundWindow(hWnd);
+        }
+
+        if (foregroundThreadId != currentThreadId)
+        {
+            AttachThreadInput(foregroundThreadId, currentThreadId, false);
+        }
+
+        if (!result)
+        {
+            result = SetForegroundWindow(hWnd);
+        }
+
         return result;
     }
 }

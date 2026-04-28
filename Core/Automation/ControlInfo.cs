@@ -77,3 +77,26 @@ public class LabelPosition
     public int CenterX { get; set; }
     public int CenterY { get; set; }
 }
+
+public class ScanResultLite
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public string Timestamp { get; set; } = DateTime.Now.ToString("O");
+    public WindowInfoLite? Window { get; set; }
+    public ScanSummaryLite? Summary { get; set; }
+    public List<string>? Controls { get; set; }
+}
+
+public class WindowInfoLite
+{
+    public long Handle { get; set; }
+    public string Title { get; set; } = "";
+    public string ClassName { get; set; } = "";
+}
+
+public class ScanSummaryLite
+{
+    public int TotalControls { get; set; }
+    public string Description { get; set; } = "";
+}
