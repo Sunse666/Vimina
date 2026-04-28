@@ -247,7 +247,7 @@ requests.post("http://localhost:51401/api/input", json={"text": "Hello"})
 
 ## License
 
-[MIT License](LICENSE)
+[GPL License](LICENSE)
 
 ---
 
