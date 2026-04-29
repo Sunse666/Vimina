@@ -13,16 +13,17 @@ namespace Vimina.Core.Automation;
 public class ControlScanner : IDisposable
 {
     private UIA3Automation? _automation;
+    private readonly object _lockObj = new();
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int nIndex);
 
-    private const int SM_CXSCREEN = 0;  // Primary screen width
-    private const int SM_CYSCREEN = 1;  // Primary screen height
-    private const int SM_CXVIRTUALSCREEN = 78;  // Virtual screen width
-    private const int SM_CYVIRTUALSCREEN = 79;  // Virtual screen height
-    private const int SM_XVIRTUALSCREEN = 76;   // Virtual screen left
-    private const int SM_YVIRTUALSCREEN = 77;   // Virtual screen top
+    private const int SM_CXSCREEN = 0;
+    private const int SM_CYSCREEN = 1;
+    private const int SM_CXVIRTUALSCREEN = 78;
+    private const int SM_CYVIRTUALSCREEN = 79;
+    private const int SM_XVIRTUALSCREEN = 76;
+    private const int SM_YVIRTUALSCREEN = 77;
 
     public List<ControlInfo> ScanInteractiveControls(IntPtr hwnd)
     {
@@ -88,80 +89,96 @@ public class ControlScanner : IDisposable
 
         try
         {
-            // Use FindAllChildren to get all direct children
             var children = element.FindAllChildren();
-            foreach (var child in children)
+            var childrenList = children.ToList();
+            
+            if (level < 3)
             {
-                try
+                Parallel.ForEach(childrenList, child =>
                 {
-                    var ctrlTypeNum = (int)child.ControlType;
-                    var ctrlTypeName = child.ControlType.ToString();
-                    var isInteractive = ControlTypeInfo.InteractiveTypeNums.Contains(ctrlTypeNum);
-                    var childName = child.Name ?? "";
-
-                    // Debug output - log all controls found
-                    System.Diagnostics.Debug.WriteLine($"[FlaUI] Level {level}: {ctrlTypeName}({ctrlTypeNum}) - '{childName}' - Interactive: {isInteractive}");
-
-                    if (interactiveOnly && !isInteractive)
-                    {
-                        // Even if not interactive, continue to scan children
-                        EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
-                        continue;
-                    }
-
-                    var bounds = child.BoundingRectangle;
-                    if (bounds.IsEmpty) continue;
-
-                    var w = (int)bounds.Width;
-                    var h = (int)bounds.Height;
-                    var x = (int)bounds.X;
-                    var y = (int)bounds.Y;
-
-                    if (w < ConfigManager.Current.MinWidth || h < ConfigManager.Current.MinHeight)
-                    {
-                        EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
-                        continue;
-                    }
-
-                    var screenRight = screenX + screenW;
-                    var screenBottom = screenY + screenH;
-                    if (x + w <= screenX || y + h <= screenY || x >= screenRight || y >= screenBottom)
-                    {
-                        EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
-                        continue;
-                    }
-
-                    var typeInfo = ControlTypeInfo.AllTypes.GetValueOrDefault(ctrlTypeNum, ControlTypeInfo.AllTypes[0]);
-                    var interactiveTypeInfo = ControlTypeInfo.InteractiveTypes.GetValueOrDefault(ctrlTypeNum);
-
-                    var controlText = GetControlText(child);
-
-                    var info = new ControlInfo
-                    {
-                        Name = controlText,
-                        Type = typeInfo.Name,
-                        TypeNum = ctrlTypeNum,
-                        TypeDesc = typeInfo.Description,
-                        ActionHint = interactiveTypeInfo?.ActionHint ?? "",
-                        IsInteractive = ControlTypeInfo.InteractiveTypeNums.Contains(ctrlTypeNum),
-                        X = x,
-                        Y = y,
-                        Width = w,
-                        Height = h,
-                        Hwnd = element.Properties.NativeWindowHandle.ValueOrDefault.ToInt64()
-                    };
-
-                    try { info.AutomationId = child.AutomationId ?? ""; } catch { }
-                    try { info.ClassName = child.ClassName ?? ""; } catch { }
-                    try { info.HelpText = child.HelpText ?? ""; } catch { }
-                    try { info.IsEnabled = child.IsEnabled; } catch { }
-                    try { info.IsOffscreen = child.IsOffscreen; } catch { }
-
-                    controls.Add(info);
-                    EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
-                }
-                catch { }
+                    ProcessChildControl(child, level, controls, screenW, screenH, screenX, screenY, interactiveOnly);
+                });
             }
+            else
+            {
+                foreach (var child in childrenList)
+                {
+                    ProcessChildControl(child, level, controls, screenW, screenH, screenX, screenY, interactiveOnly);
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void ProcessChildControl(AutomationElement child, int level, List<ControlInfo> controls, int screenW, int screenH, int screenX, int screenY, bool interactiveOnly)
+    {
+        try
+        {
+            var ctrlTypeNum = (int)child.ControlType;
+            var ctrlTypeName = child.ControlType.ToString();
+            var isInteractive = ControlTypeInfo.InteractiveTypeNums.Contains(ctrlTypeNum);
+            var childName = child.Name ?? "";
+
+            if (interactiveOnly && !isInteractive)
+            {
+                EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
+                return;
+            }
+
+            var bounds = child.BoundingRectangle;
+            if (bounds.IsEmpty) return;
+
+            var w = (int)bounds.Width;
+            var h = (int)bounds.Height;
+            var x = (int)bounds.X;
+            var y = (int)bounds.Y;
+
+            if (w < ConfigManager.Current.MinWidth || h < ConfigManager.Current.MinHeight)
+            {
+                EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
+                return;
+            }
+
+            var screenRight = screenX + screenW;
+            var screenBottom = screenY + screenH;
+            if (x + w <= screenX || y + h <= screenY || x >= screenRight || y >= screenBottom)
+            {
+                EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
+                return;
+            }
+
+            var typeInfo = ControlTypeInfo.AllTypes.GetValueOrDefault(ctrlTypeNum, ControlTypeInfo.AllTypes[0]);
+            var interactiveTypeInfo = ControlTypeInfo.InteractiveTypes.GetValueOrDefault(ctrlTypeNum);
+
+            var controlText = GetControlText(child);
+
+            var info = new ControlInfo
+            {
+                Name = controlText,
+                Type = typeInfo.Name,
+                TypeNum = ctrlTypeNum,
+                TypeDesc = typeInfo.Description,
+                ActionHint = interactiveTypeInfo?.ActionHint ?? "",
+                IsInteractive = ControlTypeInfo.InteractiveTypeNums.Contains(ctrlTypeNum),
+                X = x,
+                Y = y,
+                Width = w,
+                Height = h,
+                Hwnd = child.Properties.NativeWindowHandle.ValueOrDefault.ToInt64()
+            };
+
+            try { info.AutomationId = child.AutomationId ?? ""; } catch { }
+            try { info.ClassName = child.ClassName ?? ""; } catch { }
+            try { info.HelpText = child.HelpText ?? ""; } catch { }
+            try { info.IsEnabled = child.IsEnabled; } catch { }
+            try { info.IsOffscreen = child.IsOffscreen; } catch { }
+
+            lock (_lockObj)
+            {
+                controls.Add(info);
+            }
+            
+            EnumerateControls(child, level + 1, controls, screenW, screenH, screenX, screenY, interactiveOnly);
         }
         catch { }
     }

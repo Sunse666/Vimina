@@ -359,9 +359,9 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="100"/>
                                     </Grid.ColumnDefinitions>
-                                    <Ellipse Width="16" Height="16" Fill="#00DDFF" Margin="0,0,10,0"/>
+                                    <Ellipse Width="16" Height="16" Fill="#FFAE04" Margin="0,0,10,0"/>
                                     <TextBlock Grid.Column="1" Text="默认" VerticalAlignment="Center"/>
-                                    <TextBox Grid.Column="2" x:Name="TxtColorDefault" Text="0x00DDFF" 
+                                    <TextBox Grid.Column="2" x:Name="TxtColorDefault" Text="0xFFAE04" 
                                             Style="{StaticResource InputStyle}"/>
                                 </Grid>
                                 

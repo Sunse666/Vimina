@@ -2,7 +2,7 @@ namespace Vimina.Core.Config;
 
 public class ViminaConfig
 {
-    public string BackgroundColor_Default { get; set; } = "0x00DDFF";
+    public string BackgroundColor_Default { get; set; } = "0xFFAE04";
     public string BackgroundColor_Match { get; set; } = "0x00FF00";
     public string BackgroundColor_Prefix { get; set; } = "0x00A5FF";
     public string BackgroundColor_Invalid { get; set; } = "0x808080";
