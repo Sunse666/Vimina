@@ -75,7 +75,7 @@ curl "http://localhost:51401/api/scanAll"
 
 ### 2. Generated Files Explanation
 
-Scanning generates three JSON files in the `data/` directory:
+Scanning generates JSON files in the `data/` directory:
 
 #### scan_result_lite.json (AI-Friendly, Recommended)
 
@@ -108,6 +108,41 @@ Minimal format, one string per control, saves AI tokens:
 - Small file, low token consumption
 - Complete info: label, name, type, coordinates
 - AI can directly understand interface structure
+
+#### scan_result_tree.json (Control Tree Structure)
+
+Contains control hierarchy with parent-child relationships. **Read together with scan_result_lite.json for complete analysis.**
+
+```json
+{
+  "controlTree": {
+    "name": "bilibili",
+    "x": 0, "y": 0,
+    "children": [
+      {
+        "name": "Search box",
+        "x": 100, "y": 200,
+        "children": []
+      },
+      {
+        "name": "Video List",
+        "x": 0, "y": 100,
+        "children": [
+          { "name": "Video Title 1", "x": 100, "y": 150 },
+          { "name": "Video Title 2", "x": 100, "y": 200 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Fields**:
+- `name`: Control text content
+- `x, y`: Control position
+- `children`: Nested child controls
+
+**Usage**: Combine with `scan_result_lite.json` - lite provides labels/types/center coordinates, tree provides hierarchy.
 
 #### label_map.json (Label-Coordinate Mapping)
 
