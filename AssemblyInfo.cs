@@ -12,8 +12,8 @@ using System.Windows;
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
 [assembly: Guid("D1B7E8F3-4A5C-6B7D-8E9F-0A1B2C3D4E5F")]
-[assembly: AssemblyVersion("1.1.3.0")]
-[assembly: AssemblyFileVersion("1.1.3.0")]
+[assembly: AssemblyVersion("1.1.4.0")]
+[assembly: AssemblyFileVersion("1.1.4.0")]
 
 [assembly:ThemeInfo(
     ResourceDictionaryLocation.None,

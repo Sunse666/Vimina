@@ -83,6 +83,184 @@ public class ControlScanner : IDisposable
         return deduplicated;
     }
 
+    public ControlInfo ScanAllControlsToTree(IntPtr hwnd)
+    {
+        _automation?.Dispose();
+        _automation = new UIA3Automation();
+
+        var window = _automation.FromHandle(hwnd);
+        if (window == null) return new ControlInfo();
+
+        var screenW = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        var screenH = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        var virtualScreenX = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        var virtualScreenY = GetSystemMetrics(SM_YVIRTUALSCREEN);
+
+        var rootInfo = CreateWindowRootInfo(window, screenW, screenH, virtualScreenX, virtualScreenY);
+        var children = EnumerateControlsToTree(window, 1, screenW, screenH, virtualScreenX, virtualScreenY);
+        
+        DeduplicateTree(children);
+        AssignLabels(children);
+        
+        rootInfo.Children = children;
+        return rootInfo;
+    }
+
+    private ControlInfo CreateWindowRootInfo(AutomationElement window, int screenW, int screenH, int screenX, int screenY)
+    {
+        var bounds = window.BoundingRectangle;
+        var typeInfo = ControlTypeInfo.AllTypes.GetValueOrDefault((int)window.ControlType, ControlTypeInfo.AllTypes[0]);
+        
+        return new ControlInfo
+        {
+            Label = "Root",
+            Name = window.Name ?? "",
+            Type = typeInfo.Name,
+            TypeNum = (int)window.ControlType,
+            TypeDesc = typeInfo.Description,
+            ActionHint = "",
+            IsInteractive = false,
+            X = (int)bounds.X,
+            Y = (int)bounds.Y,
+            Width = (int)bounds.Width,
+            Height = (int)bounds.Height,
+            Hwnd = window.Properties.NativeWindowHandle.ValueOrDefault.ToInt64()
+        };
+    }
+
+    private List<ControlInfo> EnumerateControlsToTree(AutomationElement element, int level, int screenW, int screenH, int screenX, int screenY)
+    {
+        var result = new List<ControlInfo>();
+        
+        if (level > ConfigManager.Current.MaxDepth) return result;
+
+        try
+        {
+            var children = element.FindAllChildren();
+            foreach (var child in children)
+            {
+                try
+                {
+                    var ctrlTypeNum = (int)child.ControlType;
+                    var bounds = child.BoundingRectangle;
+                    
+                    if (bounds.IsEmpty)
+                    {
+                        var subChildren = EnumerateControlsToTree(child, level + 1, screenW, screenH, screenX, screenY);
+                        result.AddRange(subChildren);
+                        continue;
+                    }
+
+                    var w = (int)bounds.Width;
+                    var h = (int)bounds.Height;
+                    var x = (int)bounds.X;
+                    var y = (int)bounds.Y;
+
+                    if (w < ConfigManager.Current.MinWidth || h < ConfigManager.Current.MinHeight)
+                    {
+                        var subChildren = EnumerateControlsToTree(child, level + 1, screenW, screenH, screenX, screenY);
+                        result.AddRange(subChildren);
+                        continue;
+                    }
+
+                    var screenRight = screenX + screenW;
+                    var screenBottom = screenY + screenH;
+                    if (x + w <= screenX || y + h <= screenY || x >= screenRight || y >= screenBottom)
+                    {
+                        var subChildren = EnumerateControlsToTree(child, level + 1, screenW, screenH, screenX, screenY);
+                        result.AddRange(subChildren);
+                        continue;
+                    }
+
+                    var typeInfo = ControlTypeInfo.AllTypes.GetValueOrDefault(ctrlTypeNum, ControlTypeInfo.AllTypes[0]);
+                    var interactiveTypeInfo = ControlTypeInfo.InteractiveTypes.GetValueOrDefault(ctrlTypeNum);
+                    var controlText = GetControlText(child);
+
+                    var info = new ControlInfo
+                    {
+                        Name = controlText,
+                        Type = typeInfo.Name,
+                        TypeNum = ctrlTypeNum,
+                        TypeDesc = typeInfo.Description,
+                        ActionHint = interactiveTypeInfo?.ActionHint ?? "",
+                        IsInteractive = ControlTypeInfo.InteractiveTypeNums.Contains(ctrlTypeNum),
+                        X = x,
+                        Y = y,
+                        Width = w,
+                        Height = h,
+                        Hwnd = child.Properties.NativeWindowHandle.ValueOrDefault.ToInt64()
+                    };
+
+                    try { info.AutomationId = child.AutomationId ?? ""; } catch { }
+                    try { info.ClassName = child.ClassName ?? ""; } catch { }
+                    try { info.HelpText = child.HelpText ?? ""; } catch { }
+                    try { info.IsEnabled = child.IsEnabled; } catch { }
+                    try { info.IsOffscreen = child.IsOffscreen; } catch { }
+
+                    var nestedChildren = EnumerateControlsToTree(child, level + 1, screenW, screenH, screenX, screenY);
+                    if (nestedChildren.Count > 0)
+                    {
+                        info.Children = nestedChildren;
+                    }
+
+                    result.Add(info);
+                }
+                catch { }
+            }
+        }
+        catch { }
+
+        return result;
+    }
+
+    private void DeduplicateTree(List<ControlInfo> controls)
+    {
+        var seen = new HashSet<string>();
+        var toRemove = new List<int>();
+
+        for (int i = controls.Count - 1; i >= 0; i--)
+        {
+            var ctrl = controls[i];
+            var key = $"{ctrl.CenterX}_{ctrl.CenterY}";
+            
+            if (seen.Contains(key))
+            {
+                toRemove.Add(i);
+            }
+            else
+            {
+                seen.Add(key);
+                if (ctrl.Children != null && ctrl.Children.Count > 0)
+                {
+                    DeduplicateTree(ctrl.Children);
+                }
+            }
+        }
+
+        foreach (var idx in toRemove)
+        {
+            controls.RemoveAt(idx);
+        }
+    }
+
+    private void AssignLabels(List<ControlInfo> controls)
+    {
+        LabelGenerator.Reset();
+        AssignLabelsRecursive(controls);
+    }
+
+    private void AssignLabelsRecursive(List<ControlInfo> controls)
+    {
+        foreach (var ctrl in controls)
+        {
+            ctrl.Label = LabelGenerator.Next();
+            if (ctrl.Children != null && ctrl.Children.Count > 0)
+            {
+                AssignLabelsRecursive(ctrl.Children);
+            }
+        }
+    }
+
     private void EnumerateControls(AutomationElement element, int level, List<ControlInfo> controls, int screenW, int screenH, int screenX, int screenY, bool interactiveOnly)
     {
         if (level > ConfigManager.Current.MaxDepth) return;
@@ -322,6 +500,70 @@ public class ControlScanner : IDisposable
             },
             Controls = controlStrings
         };
+    }
+
+    public ScanResultTree BuildScanResultTree(ControlInfo controlTree, Helpers.WindowInfo windowInfo)
+    {
+        return new ScanResultTree
+        {
+            ControlTree = ConvertToTreeNode(controlTree)
+        };
+    }
+
+    private ControlTreeNode ConvertToTreeNode(ControlInfo info)
+    {
+        var node = new ControlTreeNode
+        {
+            Name = string.IsNullOrEmpty(info.Name) ? info.TypeDesc : info.Name,
+            X = info.X,
+            Y = info.Y
+        };
+
+        if (info.Children != null && info.Children.Count > 0)
+        {
+            node.Children = info.Children.Select(c => ConvertToTreeNode(c)).ToList();
+        }
+
+        return node;
+    }
+
+    private int CountControlsInTree(ControlInfo? root)
+    {
+        if (root == null) return 0;
+        
+        var count = 1;
+        if (root.Children != null)
+        {
+            foreach (var child in root.Children)
+            {
+                count += CountControlsInTree(child);
+            }
+        }
+        return count;
+    }
+
+    private List<string> FlattenTreeToStrings(ControlInfo root)
+    {
+        var result = new List<string>();
+        FlattenTreeToStringsRecursive(root, result);
+        return result;
+    }
+
+    private void FlattenTreeToStringsRecursive(ControlInfo info, List<string> result)
+    {
+        if (info.Label != "Root")
+        {
+            var name = string.IsNullOrEmpty(info.Name) ? info.TypeDesc : info.Name;
+            result.Add($"{info.Label}: {name} ({info.Type}) [{info.CenterX}, {info.CenterY}]");
+        }
+
+        if (info.Children != null)
+        {
+            foreach (var child in info.Children)
+            {
+                FlattenTreeToStringsRecursive(child, result);
+            }
+        }
     }
 
     public void Dispose()

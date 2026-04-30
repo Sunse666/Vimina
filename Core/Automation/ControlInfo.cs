@@ -26,6 +26,15 @@ public class ControlInfo
     public bool IsOffscreen { get; set; }
 
     public long Hwnd { get; set; }
+    public List<ControlInfo>? Children { get; set; }
+}
+
+public class ControlTreeNode
+{
+    public string Name { get; set; } = "";
+    public int X { get; set; }
+    public int Y { get; set; }
+    public List<ControlTreeNode>? Children { get; set; }
 }
 
 public class WindowScanResult
@@ -39,6 +48,7 @@ public class WindowScanResult
     public List<string>? QuickReference { get; set; }
     public List<ControlGroup>? ControlGroups { get; set; }
     public List<ControlInfo>? Controls { get; set; }
+    public ControlInfo? ControlTree { get; set; }
 }
 
 public class WindowInfo
@@ -86,6 +96,11 @@ public class ScanResultLite
     public WindowInfoLite? Window { get; set; }
     public ScanSummaryLite? Summary { get; set; }
     public List<string>? Controls { get; set; }
+}
+
+public class ScanResultTree
+{
+    public ControlTreeNode? ControlTree { get; set; }
 }
 
 public class WindowInfoLite

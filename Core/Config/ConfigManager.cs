@@ -47,5 +47,6 @@ public static class ConfigManager
 
     public static string ScanResultPath => Path.Combine(DataDir, "scan_result.json");
     public static string ScanResultLitePath => Path.Combine(DataDir, "scan_result_lite.json");
+    public static string ScanResultTreePath => Path.Combine(DataDir, "scan_result_tree.json");
     public static string LabelMapPath => Path.Combine(DataDir, "label_map.json");
 }

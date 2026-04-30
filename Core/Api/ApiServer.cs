@@ -374,16 +374,20 @@ public class ApiServer
             if (hwnd == IntPtr.Zero) return Results.Json(new { error = $"未找到窗口: {title}" });
 
             using var scanner = new ControlScanner();
-            var controls = scanner.ScanAllControls(hwnd);
+            var controlTree = scanner.ScanAllControlsToTree(hwnd);
+            var allControls = FlattenControlTree(controlTree);
             var windowInfo = new Helpers.WindowInfo(hwnd,
                 WindowHelper.GetWindowTitle(hwnd),
                 WindowHelper.GetWindowClass(hwnd), 0);
-            var result = scanner.BuildScanResult(controls, windowInfo);
-            var resultLite = scanner.BuildScanResultLite(controls, windowInfo);
+            var result = scanner.BuildScanResult(allControls, windowInfo);
+            result.ControlTree = controlTree;
+            var resultLite = scanner.BuildScanResultLite(allControls, windowInfo);
+            var resultTree = scanner.BuildScanResultTree(controlTree, windowInfo);
             
-            var labelMap = BuildLabelMap(controls);
+            var labelMap = BuildLabelMap(allControls);
             JsonFileHelper.Save(ConfigManager.ScanResultPath, result);
             JsonFileHelper.Save(ConfigManager.ScanResultLitePath, resultLite);
+            JsonFileHelper.Save(ConfigManager.ScanResultTreePath, resultTree);
             JsonFileHelper.Save(ConfigManager.LabelMapPath, labelMap);
             
             return Results.Json(result);
@@ -398,16 +402,20 @@ public class ApiServer
             if (hwnd == IntPtr.Zero) return Results.Json(new { error = $"未找到窗口: {body.Title}" });
 
             using var scanner = new ControlScanner();
-            var controls = scanner.ScanAllControls(hwnd);
+            var controlTree = scanner.ScanAllControlsToTree(hwnd);
+            var allControls = FlattenControlTree(controlTree);
             var windowInfo = new Helpers.WindowInfo(hwnd,
                 WindowHelper.GetWindowTitle(hwnd),
                 WindowHelper.GetWindowClass(hwnd), 0);
-            var result = scanner.BuildScanResult(controls, windowInfo);
-            var resultLite = scanner.BuildScanResultLite(controls, windowInfo);
+            var result = scanner.BuildScanResult(allControls, windowInfo);
+            result.ControlTree = controlTree;
+            var resultLite = scanner.BuildScanResultLite(allControls, windowInfo);
+            var resultTree = scanner.BuildScanResultTree(controlTree, windowInfo);
             
-            var labelMap = BuildLabelMap(controls);
+            var labelMap = BuildLabelMap(allControls);
             JsonFileHelper.Save(ConfigManager.ScanResultPath, result);
             JsonFileHelper.Save(ConfigManager.ScanResultLitePath, resultLite);
+            JsonFileHelper.Save(ConfigManager.ScanResultTreePath, resultTree);
             JsonFileHelper.Save(ConfigManager.LabelMapPath, labelMap);
             
             return Results.Json(result);
@@ -573,6 +581,29 @@ public class ApiServer
         {
             return Results.Json(new { log = _vmaEngine.Log });
         });
+    }
+
+    private static List<ControlInfo> FlattenControlTree(ControlInfo? root)
+    {
+        var result = new List<ControlInfo>();
+        if (root == null) return result;
+        FlattenControlTreeRecursive(root, result);
+        return result;
+    }
+
+    private static void FlattenControlTreeRecursive(ControlInfo node, List<ControlInfo> result)
+    {
+        if (node.Label != "Root")
+        {
+            result.Add(node);
+        }
+        if (node.Children != null)
+        {
+            foreach (var child in node.Children)
+            {
+                FlattenControlTreeRecursive(child, result);
+            }
+        }
     }
 
     private static LabelMap BuildLabelMap(List<ControlInfo> controls)
